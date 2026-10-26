@@ -8,7 +8,7 @@ Proyecto de diseño y arquitectura de una aplicación móvil Android. Este repos
 
 | | Enlace |
 |---|---|
-| 🎨 Prototipo en Google Stitch | **[PEGAR ENLACE PÚBLICO DE STITCH]** |
+| 🎨 Prototipo en Google Stitch | https://stitch.withgoogle.com/projects/2507496012775443897 |
 | 🎬 Video de presentación | **[PEGAR ENLACE DE YOUTUBE / DRIVE]** |
 
 ## 👥 Equipo
@@ -146,7 +146,7 @@ La API entrega una fila por cada combinación de *presentación + principio acti
 
 ## 📱 Hito 3 · Pantallas y flujo de navegación
 
-🎨 **Prototipo interactivo en Google Stitch:** **[PEGAR ENLACE PÚBLICO DE STITCH]**
+🎨 **Prototipo interactivo en Google Stitch:** **https://stitch.withgoogle.com/projects/2507496012775443897**
 
 ### Flujo de navegación
 
