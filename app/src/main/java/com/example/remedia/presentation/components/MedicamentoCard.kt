@@ -1,0 +1,45 @@
+package com.example.remedia.presentation.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.example.remedia.presentation.model.MedicamentoUi
+
+/** Tarjeta de un medicamento en la lista de resultados. */
+@Composable
+fun MedicamentoCard(
+    medicamento: MedicamentoUi,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(onClick = onClick, modifier = modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(text = medicamento.nombre, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = medicamento.laboratorio,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = medicamento.formaFarmaceutica,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                EstadoChip(vigente = medicamento.vigente)
+                VentaLibreBadge(ventaLibre = medicamento.ventaLibre)
+            }
+        }
+    }
+}
