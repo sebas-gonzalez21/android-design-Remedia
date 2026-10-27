@@ -7,49 +7,47 @@ import com.example.remedia.presentation.model.MedicamentoUi
 /**
  * Puente entre la API (Retrofit) y la Vista. Los ViewModels solo hablan con esto.
  *
- * El dataset de datos.gov.co ("ec4u-mzse") es de CONTROL DE PRECIOS, no el registro
- * INVIMA: no trae expediente, vigencia ni venta libre reales. Esos campos se rellenan
- * con un valor por defecto honesto hasta que se conecte una fuente que sí los tenga.
+ * Dataset i7cb-raxc (CUM Vigentes, INVIMA) para búsqueda y detalle: trae expediente,
+ * vigencia y registro INVIMA reales. Precio regulado (nauz-qkjw) y venta libre
+ * (xzwx-qpja) solo se consultan en el Detalle, tal como lo define el README (Hito 1/4):
+ * no todo medicamento tiene precio regulado (solo los que están en control de precios),
+ * así que "sin precio" es un resultado válido, no un error.
  */
 object MedicamentosRepository {
 
-    private val cachePorExpediente = mutableMapOf<String, MedicamentoUi>()
-
     suspend fun buscar(texto: String): List<MedicamentoUi> =
-        RetrofitClient.api.buscar(texto = texto).map { it.toUi() }.also(::actualizarCache)
+        RetrofitClient.api.buscar(texto = texto).map { it.toUiBasico() }
 
-    suspend fun porPrincipioActivo(principioActivo: String): List<MedicamentoUi> =
-        RetrofitClient.api.porPrincipioActivo(principioActivo = principioActivo)
-            .map { it.toUi() }
-            .also(::actualizarCache)
+    suspend fun cargarDetalle(expediente: String): MedicamentoUi? {
+        val base = RetrofitClient.api.detalle(expediente).firstOrNull()?.toUiBasico() ?: return null
 
-    /** No existe endpoint por id único en la API; se resuelve contra lo último consultado. */
-    fun obtenerDeCache(expediente: String): MedicamentoUi? = cachePorExpediente[expediente]
+        val precio = runCatching {
+            RetrofitClient.api.precio(where = "starts_with(cum, '$expediente-')").firstOrNull()?.precioMaximo
+        }.getOrNull()
 
-    private fun actualizarCache(lista: List<MedicamentoUi>) {
-        lista.forEach { cachePorExpediente[it.expediente] = it }
+        val ventaLibre = base.principiosActivos.firstOrNull()?.let { principio ->
+            runCatching { RetrofitClient.api.ventaLibre(principio).isNotEmpty() }.getOrDefault(false)
+        } ?: false
+
+        return base.copy(
+            precioMaximo = precio?.trim()?.takeUnless { it.isBlank() }?.let { "$ $it" },
+            ventaLibre = ventaLibre
+        )
     }
 
-    private fun MedicamentoDto.toUi(): MedicamentoUi {
-        val nombreBase = nombreComercial?.trim().orEmpty().ifBlank { "Medicamento sin nombre" }
-        val nombreCompleto = concentracion?.trim()
-            .takeUnless { it.isNullOrBlank() }
-            ?.let { "$nombreBase $it" }
-            ?: nombreBase
-        val claveUnica = listOf(nombreBase, concentracion.orEmpty(), fabricante.orEmpty())
-            .joinToString("|")
-
+    private fun MedicamentoDto.toUiBasico(): MedicamentoUi {
+        val nombre = producto?.trim().orEmpty().ifBlank { "Medicamento sin nombre" }
         return MedicamentoUi(
-            expediente = claveUnica.hashCode().toString(),
-            nombre = nombreCompleto,
-            laboratorio = fabricante?.trim().orEmpty().ifBlank { "No especificado" },
-            formaFarmaceutica = unidadDispensacion?.trim().orEmpty().ifBlank { "No especificado" },
-            vigente = true, // el dataset de precios no marca vigencia; se asume vigente si está listado
-            ventaLibre = false, // el dataset no distingue venta libre; no hay forma de inferirlo aquí
-            paraQueSirve = principioActivo?.trim().orEmpty().ifBlank { "No especificado" },
-            principiosActivos = principioActivo?.let { listOf(it) } ?: emptyList(),
-            registroInvima = "No disponible en este dataset",
-            precioMaximo = precioPorTableta?.trim()?.takeUnless { it.isBlank() }?.let { "$ $it" }
+            expediente = expediente.orEmpty(),
+            nombre = nombre,
+            laboratorio = titular?.trim().orEmpty().ifBlank { "No especificado" },
+            formaFarmaceutica = formafarmaceutica?.trim().orEmpty().ifBlank { "No especificado" },
+            vigente = estadoregistro?.trim().equals("Vigente", ignoreCase = true),
+            ventaLibre = false, // se confirma solo al entrar al Detalle (dataset aparte)
+            paraQueSirve = descripcionatc?.trim().orEmpty().ifBlank { "No especificado" },
+            principiosActivos = principioactivo?.let { listOf(it) } ?: emptyList(),
+            registroInvima = registrosanitario?.trim().orEmpty().ifBlank { "No disponible" },
+            precioMaximo = null // se confirma solo al entrar al Detalle
         )
     }
 }
