@@ -1,8 +1,10 @@
 package com.example.remedia.presentation.model
 
 /**
- * DATOS DE EJEMPLO inventados solo para que las pantallas se vean bien.
- * No son datos reales de la API. Se borra este archivo cuando lleguen los ViewModels.
+ * DATOS DE EJEMPLO inventados solo para los @Preview de Android Studio.
+ * Ya llegaron los ViewModels (ver presentation/viewmodel/): la app en vivo usa
+ * BusquedaViewModel/DetalleViewModel -> MedicamentosRepository -> API real.
+ * Este objeto se queda solo para que las previsualizaciones compilen sin red.
  */
 object MockData {
 
