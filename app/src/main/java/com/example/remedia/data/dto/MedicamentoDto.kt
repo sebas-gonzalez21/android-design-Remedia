@@ -1,15 +1,22 @@
 package com.example.remedia.data.dto
 
-import com.google.gson.annotations.SerializedName
-
+/**
+ * Dataset i7cb-raxc (CUM Vigentes, INVIMA) - ver README, Hito 1 y 4.
+ * Nombres de campo verificados contra la API real (datos.gov.co), no inventados.
+ * En /buscar y /equivalentes viene narrow (solo los campos de $select); en /detalle
+ * viene completo, por eso todos son nulables.
+ */
 data class MedicamentoDto(
-    @SerializedName("principio_activo") val principioActivo: String?,
-    @SerializedName("nombre_comercial") val nombreComercial: String?,
-    @SerializedName("concentracion") val concentracion: String?,
-    @SerializedName("unidad_de_dispensacion") val unidadDispensacion: String?,
-    @SerializedName("unidad_base") val unidadBase: String?,
-    @SerializedName("fabricante") val fabricante: String?,
-    @SerializedName("precio_por_tableta") val precioPorTableta: String?,
-    @SerializedName("factoresprecio") val factorPrecio: String?,
-    @SerializedName("numerofactor") val numeroFactor: String?
+    val expediente: String?,
+    val producto: String?,
+    val titular: String?,
+    val estadoregistro: String?,
+    val formafarmaceutica: String?,
+    val registrosanitario: String? = null,
+    val viaadministracion: String? = null,
+    val atc: String? = null,
+    val descripcionatc: String? = null,
+    val principioactivo: String? = null,
+    val cantidad: String? = null,
+    val unidadmedida: String? = null
 )
