@@ -3,8 +3,6 @@ package com.example.remedia.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.remedia.data.repository.MedicamentosRepository
-import com.example.remedia.presentation.model.EstadoUi
-import com.example.remedia.presentation.model.MedicamentoUi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

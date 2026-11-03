@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.remedia.presentation.model.MedicamentoUi
+import com.example.remedia.presentation.viewmodel.MedicamentoUi
 import com.example.remedia.ui.theme.Borde
 import com.example.remedia.ui.theme.Fondo
 import com.example.remedia.ui.theme.Gris400

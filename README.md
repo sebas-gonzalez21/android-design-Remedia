@@ -3,7 +3,7 @@
 > **Toma una foto de la caja o escribe el nombre de un medicamento y entérate qué es, para qué sirve, si necesitas fórmula, cuánto debería costar y qué genéricos equivalentes existen. Con datos oficiales del INVIMA y del Ministerio de Salud.**
 
 Proyecto de diseño y arquitectura de una aplicación móvil Android. Este repositorio contiene:
-- **(a)** el proyecto base de Android Studio (Empty Activity, Kotlin, Compose) **sin código de aplicación**, y
+- **(a)** la app funcional en Kotlin + Jetpack Compose, con arquitectura MVVM, que ya consume la API real de datos.gov.co (ver Hito 4), y
 - **(b)** este `README.md`, que documenta todo el diseño de la app.
 
 | | Enlace |
@@ -166,9 +166,9 @@ flowchart TD
 
 | | |
 |---|---|
-| **Qué muestra** | Barra de búsqueda, botón grande "📷 Escanear caja" y una lista de **medicamentos consultados recientemente** (guardados en el celular). |
-| **Datos** | Los recientes salen de la base de datos local (Room). Esta pantalla no llama a la API. |
-| **Acciones** | Escribir un nombre y buscar → **P3** enviando `query`. Tocar "Escanear" → **P2**. Tocar un reciente → **P4** enviando `expediente`. |
+| **Qué muestra** | Barra de búsqueda, botón grande "📷 Escanear caja" y una lista de **medicamentos consultados recientemente** (de esta sesión). |
+| **Datos** | Los recientes se guardan en memoria en el `BusquedaViewModel` mientras la app está abierta. Todavía no persisten en Room entre reinicios (ver Hito 4, buenas prácticas pendientes). Esta pantalla no llama a la API directamente. |
+| **Acciones** | Escribir un nombre y buscar → **P3** enviando `query`. Tocar "Escanear" → **P2**. Tocar un reciente → **P3**, repitiendo esa búsqueda como `query`. |
 
 ### Pantalla 2 · Escáner
 
@@ -177,8 +177,8 @@ flowchart TD
 | | |
 |---|---|
 | **Qué muestra** | Vista de la cámara con un recuadro guía ("Enfoca el nombre del medicamento"), el texto detectado en tiempo real y un botón "Usar este nombre". |
-| **Datos** | No llama a la API. Usa **CameraX** y **ML Kit Text Recognition**, que reconoce el texto dentro del celular, sin internet. |
-| **Acciones** | Confirmar el texto detectado → **P3** enviando `query`. Si el usuario no da permiso de cámara, muestra un mensaje y la opción de escribir el nombre. |
+| **Datos** | No llama a la API. La UI ya está lista para **CameraX** + **ML Kit Text Recognition**, pero la integración real de cámara todavía no está hecha: por ahora el botón de capturar responde honestamente que la función no está disponible y sugiere escribir el nombre. |
+| **Acciones** | Cuando la cámara esté integrada: confirmar el texto detectado → **P3** enviando `query`. Hoy: "Escribir el nombre" vuelve a Inicio. |
 
 ### Pantalla 3 · Resultados (lista principal)
 
@@ -186,8 +186,8 @@ flowchart TD
 
 | | |
 |---|---|
-| **Qué muestra** | Lista (`LazyColumn`) de medicamentos. Cada tarjeta muestra el nombre comercial, el laboratorio, la forma farmacéutica y una **etiqueta de estado** (🟢 Vigente / 🔴 Vencido). Tiene filtros por forma farmacéutica. |
-| **Endpoints** | Búsqueda: `GET i7cb-raxc.json?$q={query}`. Equivalentes: `GET i7cb-raxc.json?principioactivo={nombre}` |
+| **Qué muestra** | Lista (`LazyColumn`) de medicamentos. Cada tarjeta muestra el nombre comercial, el laboratorio, la forma farmacéutica y una **etiqueta de estado** (🟢 Vigente / 🔴 Vencido). Tiene filtros por tipo de venta (Todos / Venta libre / Con fórmula). |
+| **Endpoints** | `GET i7cb-raxc.json?$q={query}`. "Ver equivalentes" reutiliza este mismo endpoint, enviando el principio activo como `query` en vez de un endpoint separado. |
 | **Acciones** | Tocar un medicamento → **P4** enviando `expediente`. Estados: *Cargando* (skeleton), *Éxito* (lista), *Vacío* ("No encontramos ese medicamento") y *Error* (botón "Reintentar"). |
 
 ### Pantalla 4 · Detalle del medicamento
@@ -196,9 +196,9 @@ flowchart TD
 
 | | |
 |---|---|
-| **Qué muestra** | Nombre comercial; **para qué sirve** (grupo ATC en lenguaje sencillo); **principios activos** con su concentración; insignia **"Venta libre" / "Requiere fórmula"**; laboratorio; registro INVIMA y su estado; presentaciones con su **precio máximo legal** cuando existe; botón **"Ver equivalentes"**. |
+| **Qué muestra** | Nombre comercial; **para qué sirve** (grupo ATC en lenguaje sencillo); **principios activos**; insignia **"Venta libre" / "Requiere fórmula"**; laboratorio; registro INVIMA y su estado; precio máximo legal cuando existe; botón **"Ver equivalentes"**. |
 | **Endpoints** | `GET i7cb-raxc.json?expediente={expediente}`, `GET nauz-qkjw.json?$where=starts_with(cum, '{expediente}-')` y `GET xzwx-qpja.json?$q={principio_activo}` |
-| **Acciones** | "Ver equivalentes" → **P3** enviando `principio_activo`. "Guardar" lo añade a recientes y favoritos (Room). "Compartir" envía la información por WhatsApp. |
+| **Acciones** | "Ver equivalentes" → **P3** enviando `principio_activo`. El ícono "Compartir" ya está en la UI, pero su acción todavía no está implementada. No hay botón de "Guardar/favoritos" en esta versión. |
 
 ---
 
@@ -248,10 +248,10 @@ flowchart LR
 |---|---|
 | **UI (Jetpack Compose)** | Dibuja las pantallas y observa el estado del ViewModel. No contiene lógica de negocio. |
 | **ViewModel** | Guarda el estado de cada pantalla (`UiState`) y sobrevive a la rotación. Lanza las corrutinas y llama al repositorio. |
-| **Repository** | Fuente única de verdad. Decide si los datos vienen de la API o de la base local, y **agrupa las filas de la API** en las entidades del modelo (Medicamento, Principio Activo...). |
-| **RemoteDataSource** | Interfaz de Retrofit con los endpoints de datos.gov.co. |
-| **LocalDataSource** | Room para los recientes y favoritos. DataStore para las preferencias del usuario. |
-| **TextRecognizer** | Conecta CameraX con ML Kit para extraer el texto de la caja. Funciona sin internet. |
+| **Repository** | Fuente única de verdad. Por ahora solo trae datos de la API y **agrupa las filas** en las entidades del modelo (Medicamento, Principio Activo...); decidir entre API y base local es trabajo pendiente. |
+| **RemoteDataSource** | Interfaz de Retrofit con los endpoints de datos.gov.co. **Implementado** (`MedicamentosApi` + `RetrofitClient`). |
+| **LocalDataSource** | Room para los recientes y favoritos. DataStore para las preferencias del usuario. **Pendiente**: hoy los recientes viven en memoria en el ViewModel. |
+| **TextRecognizer** | Conecta CameraX con ML Kit para extraer el texto de la caja. **Pendiente**: la pantalla de Escáner ya tiene la UI, pero avisa que la cámara aún no está integrada. |
 
 ### Buenas prácticas planificadas
 
@@ -265,20 +265,20 @@ flowchart LR
 | **Permisos** | El permiso `CAMERA` se pide en tiempo de ejecución, solo cuando el usuario toca "Escanear". La app funciona igual si lo niega. |
 | **Paginación** | `$limit` y `$offset` para no descargar miles de registros a la vez. |
 
-### Librerías previstas
+### Librerías
 
-| Librería | Uso |
-|---|---|
-| Jetpack Compose + Navigation Compose | UI declarativa y navegación entre pantallas, con paso de argumentos (`query`, `expediente`, `principio_activo`) |
-| Lifecycle ViewModel | ViewModels conscientes del ciclo de vida |
-| Retrofit + Gson | Consumo de la API REST y conversión de JSON |
-| OkHttp Logging Interceptor | Depurar las peticiones durante el desarrollo |
-| Kotlin Coroutines | Asincronía |
-| Room | Historial de recientes y favoritos sin conexión |
-| DataStore | Preferencias del usuario |
-| CameraX | Vista previa y captura de la cámara |
-| ML Kit Text Recognition | Leer el nombre del medicamento desde la foto |
-| Coil | Cargar imágenes (íconos por forma farmacéutica) |
+| Librería | Uso | Estado |
+|---|---|---|
+| Jetpack Compose + Navigation Compose | UI declarativa y navegación entre pantallas, con paso de argumentos (`query`, `expediente`, `principio_activo`) | ✅ Implementada |
+| Lifecycle ViewModel (Compose) | ViewModels conscientes del ciclo de vida | ✅ Implementada |
+| Retrofit + Gson | Consumo de la API REST y conversión de JSON | ✅ Implementada |
+| OkHttp Logging Interceptor | Depurar las peticiones durante el desarrollo | ✅ Implementada |
+| Kotlin Coroutines | Asincronía (`viewModelScope`, funciones `suspend`) | ✅ Implementada |
+| Room | Historial de recientes y favoritos sin conexión | 🔲 Pendiente |
+| DataStore | Preferencias del usuario | 🔲 Pendiente |
+| CameraX | Vista previa y captura de la cámara | 🔲 Pendiente |
+| ML Kit Text Recognition | Leer el nombre del medicamento desde la foto | 🔲 Pendiente |
+| Coil | Cargar imágenes (íconos por forma farmacéutica) | 🔲 Pendiente |
 
 ### Tabla de endpoints
 
@@ -286,11 +286,10 @@ URL base: `https://www.datos.gov.co/resource/`
 
 | # | Endpoint | Método HTTP | Parámetros | Propósito en la App | Pantalla |
 |---|---|---|---|---|---|
-| 1 | `i7cb-raxc.json` | GET | `$q={texto}`, `$select=expediente,producto,titular,estadoregistro,formafarmaceutica`, `$group=` (mismos campos), `$limit=50` | **Buscar medicamentos** por nombre comercial, escrito o leído de la foto | P3 |
-| 2 | `i7cb-raxc.json` | GET | `expediente={expediente}` | **Detalle**: presentaciones, principios activos, laboratorio, ATC y registro | P4 |
-| 3 | `i7cb-raxc.json` | GET | `principioactivo={nombre}`, `estadoregistro=Vigente`, `$select`, `$group`, `$limit=50` | **Equivalentes**: otros medicamentos con el mismo principio activo | P3 |
-| 4 | `nauz-qkjw.json` | GET | `$where=starts_with(cum, '{expediente}-')` | **Precio máximo legal** de cada presentación | P4 |
-| 5 | `xzwx-qpja.json` | GET | `$q={principio_activo}` | Saber si el principio activo es de **venta libre** | P4 |
+| 1 | `i7cb-raxc.json` | GET | `$q={texto}`, `$select=expediente,producto,titular,estadoregistro,formafarmaceutica`, `$group=` (mismos campos), `$limit=50` | **Buscar medicamentos** por nombre comercial, escrito o leído de la foto. También se usa para **equivalentes**, enviando el principio activo como `$q` (no hay un endpoint separado). | P3 |
+| 2 | `i7cb-raxc.json` | GET | `expediente={expediente}`, `$limit=1` | **Detalle**: principio activo, laboratorio, ATC y registro del medicamento | P4 |
+| 3 | `nauz-qkjw.json` | GET | `$where=starts_with(cum, '{expediente}-')` | **Precio máximo legal** de cada presentación | P4 |
+| 4 | `xzwx-qpja.json` | GET | `$q={principio_activo}` | Saber si el principio activo es de **venta libre** | P4 |
 
 **Ejemplos reales** (se pueden abrir en el navegador):
 - Buscar "Dolex": <https://www.datos.gov.co/resource/i7cb-raxc.json?$q=dolex&$limit=5>
@@ -324,7 +323,7 @@ URL base: `https://www.datos.gov.co/resource/`
 |---|---|
 | Plantilla | Empty Activity (Jetpack Compose) |
 | Nombre | Remedia |
-| Package name | `com.[equipo].remedia` |
+| Package name | `com.example.remedia` |
 | Lenguaje | Kotlin |
 | Build configuration language | Kotlin DSL (`build.gradle.kts`) |
 | Minimum SDK | API 24 (Android 7.0) |

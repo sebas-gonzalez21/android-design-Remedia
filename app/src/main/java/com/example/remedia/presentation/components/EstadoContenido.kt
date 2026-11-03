@@ -18,7 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.remedia.presentation.model.EstadoUi
+import com.example.remedia.presentation.viewmodel.EstadoUi
 
 /**
  * Pinta los 4 estados de una pantalla. Cargando, Vacío y Error se dibujan aquí;

@@ -1,4 +1,4 @@
-package com.example.remedia.presentation.model
+package com.example.remedia.presentation.viewmodel
 
 /**
  * Los 4 estados visuales de cada pantalla.
