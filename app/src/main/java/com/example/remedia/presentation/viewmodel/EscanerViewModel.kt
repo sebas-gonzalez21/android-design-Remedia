@@ -1,7 +1,6 @@
 package com.example.remedia.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.example.remedia.presentation.model.EstadoUi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

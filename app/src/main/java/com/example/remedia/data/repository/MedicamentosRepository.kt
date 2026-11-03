@@ -2,7 +2,7 @@ package com.example.remedia.data.repository
 
 import com.example.remedia.data.dto.MedicamentoDto
 import com.example.remedia.data.network.RetrofitClient
-import com.example.remedia.presentation.model.MedicamentoUi
+import com.example.remedia.presentation.viewmodel.MedicamentoUi
 
 /**
  * Puente entre la API (Retrofit) y la Vista. Los ViewModels solo hablan con esto.

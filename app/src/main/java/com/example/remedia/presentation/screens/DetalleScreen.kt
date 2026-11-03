@@ -50,8 +50,8 @@ import com.example.remedia.presentation.components.BotonCircular
 import com.example.remedia.presentation.components.EstadoChip
 import com.example.remedia.presentation.components.EstadoContenido
 import com.example.remedia.presentation.components.entradaSuave
-import com.example.remedia.presentation.model.EstadoUi
-import com.example.remedia.presentation.model.MedicamentoUi
+import com.example.remedia.presentation.viewmodel.EstadoUi
+import com.example.remedia.presentation.viewmodel.MedicamentoUi
 import com.example.remedia.ui.theme.Borde
 import com.example.remedia.ui.theme.Fondo
 import com.example.remedia.ui.theme.FormulaFondo

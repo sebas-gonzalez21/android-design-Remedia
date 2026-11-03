@@ -1,4 +1,4 @@
-package com.example.remedia.presentation.model
+package com.example.remedia.presentation.viewmodel
 
 /**
  * Lo que la Vista necesita pintar de un medicamento.

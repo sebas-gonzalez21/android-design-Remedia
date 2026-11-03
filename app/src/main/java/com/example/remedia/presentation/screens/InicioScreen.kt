@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.sp
 import com.example.remedia.presentation.components.BuscadorBar
 import com.example.remedia.presentation.components.ChipFiltro
 import com.example.remedia.presentation.components.entradaSuave
-import com.example.remedia.presentation.model.EstadoUi
+import com.example.remedia.presentation.viewmodel.EstadoUi
 import com.example.remedia.ui.theme.Borde
 import com.example.remedia.ui.theme.Fondo
 import com.example.remedia.ui.theme.Gris400
