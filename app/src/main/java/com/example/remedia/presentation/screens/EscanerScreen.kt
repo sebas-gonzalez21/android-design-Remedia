@@ -33,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.remedia.presentation.viewmodel.EscanerViewModel
 import com.example.remedia.presentation.viewmodel.EstadoUi
 import com.example.remedia.ui.theme.Gris400
 import com.example.remedia.ui.theme.TealPrimary
@@ -59,12 +62,12 @@ import com.example.remedia.ui.theme.TealSoft
  */
 @Composable
 fun EscanerScreen(
-    estado: EstadoUi<String>,
+    viewModel: EscanerViewModel = viewModel(),
     onVolver: () -> Unit,
-    onCapturar: () -> Unit,
-    onUsarTexto: (String) -> Unit,
-    onReintentar: () -> Unit = {}
+    onUsarTexto: (String) -> Unit
 ) {
+    val estado by viewModel.estado.collectAsState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -144,12 +147,12 @@ fun EscanerScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            ResultadoEscaneo(estado, onUsarTexto, onReintentar)
+            ResultadoEscaneo(estado, onUsarTexto, onReintentar = { viewModel.capturar() })
 
             Spacer(Modifier.weight(1f))
 
             Surface(
-                onClick = onCapturar,
+                onClick = { viewModel.capturar() },
                 modifier = Modifier.size(76.dp),
                 shape = CircleShape,
                 color = Color.Transparent,
