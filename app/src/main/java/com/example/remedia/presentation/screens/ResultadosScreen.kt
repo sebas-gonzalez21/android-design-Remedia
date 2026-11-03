@@ -26,6 +26,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,12 +38,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedia.presentation.components.BotonCircular
 import com.example.remedia.presentation.components.ChipFiltro
 import com.example.remedia.presentation.components.EstadoContenido
 import com.example.remedia.presentation.components.MedicamentoCard
-import com.example.remedia.presentation.viewmodel.EstadoUi
-import com.example.remedia.presentation.viewmodel.MedicamentoUi
+import com.example.remedia.presentation.viewmodel.BusquedaViewModel
 import com.example.remedia.ui.theme.Borde
 import com.example.remedia.ui.theme.Fondo
 import com.example.remedia.ui.theme.Gris400
@@ -56,16 +58,19 @@ private enum class Filtro(val etiqueta: String) {
 
 /**
  * P3 · Resultados (estilo Stitch). Lista con LazyColumn (nunca Column).
- * El filtro es estado temporal de la UI, por eso vive en remember.
+ * Recibe el ViewModel: lanza la búsqueda con LaunchedEffect(consulta) y
+ * observa el resultado con collectAsState(). El filtro es estado temporal
+ * de la UI, por eso vive en remember.
  */
 @Composable
 fun ResultadosScreen(
-    titulo: String,
-    estado: EstadoUi<List<MedicamentoUi>>,
+    consulta: String,
+    viewModel: BusquedaViewModel = viewModel(),
     onVolver: () -> Unit,
-    onMedicamentoClick: (String) -> Unit,
-    onReintentar: () -> Unit = {}
+    onMedicamentoClick: (String) -> Unit
 ) {
+    LaunchedEffect(consulta) { viewModel.buscar(consulta) }
+    val estado by viewModel.resultados.collectAsState()
     var filtro by remember { mutableStateOf(Filtro.TODOS) }
 
     Scaffold(containerColor = Fondo) { padding ->
@@ -119,7 +124,7 @@ fun ResultadosScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = titulo,
+                            text = consulta,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = TextoPrincipal,
@@ -148,7 +153,7 @@ fun ResultadosScreen(
             EstadoContenido(
                 estado = estado,
                 mensajeVacio = "No encontramos medicamentos con esa búsqueda.",
-                onReintentar = onReintentar
+                onReintentar = { viewModel.buscar(consulta) }
             ) { lista ->
                 val visibles = when (filtro) {
                     Filtro.TODOS -> lista
@@ -162,7 +167,7 @@ fun ResultadosScreen(
                 ) {
                     item {
                         Text(
-                            text = "${visibles.size} resultados para “$titulo”",
+                            text = "${visibles.size} resultados para “$consulta”",
                             fontSize = 12.sp,
                             color = TextoSecundario
                         )

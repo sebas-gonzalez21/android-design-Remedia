@@ -36,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,9 +48,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedia.presentation.components.BuscadorBar
 import com.example.remedia.presentation.components.ChipFiltro
 import com.example.remedia.presentation.components.entradaSuave
+import com.example.remedia.presentation.viewmodel.BusquedaViewModel
 import com.example.remedia.presentation.viewmodel.EstadoUi
 import com.example.remedia.ui.theme.Borde
 import com.example.remedia.ui.theme.Fondo
@@ -64,16 +67,17 @@ private val categorias = listOf("Dolor y fiebre", "Hipertensión", "Antibiótico
 
 /**
  * P1 · Inicio / Buscar (estilo Stitch).
- * Sin lógica: recibe el estado de "recientes" y reporta clics hacia arriba.
- * Lo único que guarda es el texto a medio escribir (remember).
+ * Recibe el ViewModel e internamente observa "recientes" con collectAsState().
+ * Lo único que guarda localmente es el texto a medio escribir (remember).
  */
 @Composable
 fun InicioScreen(
-    recientes: EstadoUi<List<String>>,
+    viewModel: BusquedaViewModel = viewModel(),
     onBuscar: (String) -> Unit,
     onEscanear: () -> Unit,
     onReintentar: () -> Unit = {}
 ) {
+    val recientes by viewModel.recientes.collectAsState()
     var texto by remember { mutableStateOf("") }
 
     Scaffold(containerColor = Fondo) { padding ->

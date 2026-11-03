@@ -5,9 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,8 +15,6 @@ import com.example.remedia.presentation.screens.EscanerScreen
 import com.example.remedia.presentation.screens.InicioScreen
 import com.example.remedia.presentation.screens.ResultadosScreen
 import com.example.remedia.presentation.viewmodel.BusquedaViewModel
-import com.example.remedia.presentation.viewmodel.DetalleViewModel
-import com.example.remedia.presentation.viewmodel.EscanerViewModel
 import com.example.remedia.ui.theme.RemediaTheme
 import kotlinx.serialization.Serializable
 
@@ -54,10 +49,10 @@ private data class Detalle(val expediente: String)
  *   Inicio ──buscar──▶ Resultados ──tarjeta──▶ Detalle ──"Ver equivalentes"──▶ Resultados
  *   Inicio ──escanear──▶ Escáner ──texto──▶ Resultados
  *
- * Los estados ya salen de los ViewModels reales (BusquedaViewModel, DetalleViewModel,
- * EscanerViewModel), que llaman a MedicamentosRepository -> MedicamentosApi (Retrofit).
- * BusquedaViewModel se crea una sola vez aquí arriba para que Inicio y Resultados
- * compartan el mismo historial de "recientes".
+ * Cada pantalla recibe su ViewModel como parámetro (con viewModel() por defecto) y
+ * observa su propio estado con collectAsState() — ver presentation/screens. Esta función
+ * solo arma el grafo de navegación y crea una sola vez BusquedaViewModel para que
+ * Inicio y Resultados compartan el mismo historial de "recientes".
  */
 @Composable
 private fun RemediaNavHost() {
@@ -67,21 +62,16 @@ private fun RemediaNavHost() {
     NavHost(navController = navController, startDestination = Inicio) {
 
         composable<Inicio> {
-            val recientes by busquedaViewModel.recientes.collectAsState()
             InicioScreen(
-                recientes = recientes,
+                viewModel = busquedaViewModel,
                 onBuscar = { consulta -> navController.navigate(Resultados(consulta)) },
                 onEscanear = { navController.navigate(Escaner) }
             )
         }
 
         composable<Escaner> {
-            val escanerViewModel: EscanerViewModel = viewModel()
-            val estado by escanerViewModel.estado.collectAsState()
             EscanerScreen(
-                estado = estado,
                 onVolver = { navController.popBackStack() },
-                onCapturar = { escanerViewModel.capturar() },
                 onUsarTexto = { texto ->
                     navController.navigate(Resultados(texto)) {
                         popUpTo<Inicio>()
@@ -92,31 +82,24 @@ private fun RemediaNavHost() {
 
         composable<Resultados> { entrada ->
             val ruta: Resultados = entrada.toRoute()
-            LaunchedEffect(ruta.consulta) { busquedaViewModel.buscar(ruta.consulta) }
-            val estado by busquedaViewModel.resultados.collectAsState()
             ResultadosScreen(
-                titulo = ruta.consulta,
-                estado = estado,
+                consulta = ruta.consulta,
+                viewModel = busquedaViewModel,
                 onVolver = { navController.popBackStack() },
                 onMedicamentoClick = { expediente ->
                     navController.navigate(Detalle(expediente))
-                },
-                onReintentar = { busquedaViewModel.buscar(ruta.consulta) }
+                }
             )
         }
 
         composable<Detalle> { entrada ->
             val ruta: Detalle = entrada.toRoute()
-            val detalleViewModel: DetalleViewModel = viewModel()
-            LaunchedEffect(ruta.expediente) { detalleViewModel.cargar(ruta.expediente) }
-            val estado by detalleViewModel.estado.collectAsState()
             DetalleScreen(
-                estado = estado,
+                expediente = ruta.expediente,
                 onVolver = { navController.popBackStack() },
                 onVerEquivalentes = { principioActivo ->
                     navController.navigate(Resultados(principioActivo))
-                },
-                onReintentar = { detalleViewModel.cargar(ruta.expediente) }
+                }
             )
         }
     }

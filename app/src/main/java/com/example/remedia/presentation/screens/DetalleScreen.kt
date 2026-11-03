@@ -37,6 +37,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -46,10 +49,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedia.presentation.components.BotonCircular
 import com.example.remedia.presentation.components.EstadoChip
 import com.example.remedia.presentation.components.EstadoContenido
 import com.example.remedia.presentation.components.entradaSuave
+import com.example.remedia.presentation.viewmodel.DetalleViewModel
 import com.example.remedia.presentation.viewmodel.EstadoUi
 import com.example.remedia.presentation.viewmodel.MedicamentoUi
 import com.example.remedia.ui.theme.Borde
@@ -70,15 +75,20 @@ import com.example.remedia.ui.theme.VigenteFondo
 
 /**
  * P4 · Detalle / Ficha técnica (estilo Stitch).
- * Solo muestra datos que sí entrega la API: nada de dosis ni excipientes.
+ * Recibe el ViewModel: lanza la carga con LaunchedEffect(expediente) y
+ * observa el resultado con collectAsState(). Solo muestra datos que sí
+ * entrega la API: nada de dosis ni excipientes.
  */
 @Composable
 fun DetalleScreen(
-    estado: EstadoUi<MedicamentoUi>,
+    expediente: String,
+    viewModel: DetalleViewModel = viewModel(),
     onVolver: () -> Unit,
-    onVerEquivalentes: (String) -> Unit,
-    onReintentar: () -> Unit = {}
+    onVerEquivalentes: (String) -> Unit
 ) {
+    LaunchedEffect(expediente) { viewModel.cargar(expediente) }
+    val estado by viewModel.estado.collectAsState()
+
     Scaffold(
         containerColor = Fondo,
         bottomBar = {
@@ -93,7 +103,7 @@ fun DetalleScreen(
         EstadoContenido(
             estado = estado,
             mensajeVacio = "No se encontró este medicamento.",
-            onReintentar = onReintentar,
+            onReintentar = { viewModel.cargar(expediente) },
             modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
         ) { med ->
             LazyColumn(
