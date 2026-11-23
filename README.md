@@ -9,15 +9,15 @@ Proyecto de diseño y arquitectura de una aplicación móvil Android. Este repos
 | | Enlace |
 |---|---|
 | 🎨 Prototipo en Google Stitch | https://stitch.withgoogle.com/projects/2507496012775443897 |
-| 🎬 Video de presentación | **[PEGAR ENLACE DE YOUTUBE / DRIVE]** |
+
 
 ## 👥 Equipo
 
-| Integrante | Rol en el proyecto |
-|---|---|
-| Yhojan Caro | Líder del repositorio · Idea, API y modelo de datos |
-| Sebastian Gozalez | Diseño UI/UX en Google Stitch · Flujo de navegación |
-| Emanuel Castaño | Arquitectura MVVM · Endpoints · Proyecto base |
+| Integrante         | Rol en el proyecto |
+|--------------------|---|
+| Yhojan Caro        | Líder del repositorio · Idea, API y modelo de datos |
+| Sebastian Gonzalez | Diseño UI/UX en Google Stitch · Flujo de navegación |
+| Emanuel Castaño    | Arquitectura MVVM · Endpoints · Proyecto base |
 
 ---
 
@@ -59,7 +59,7 @@ Proyecto de diseño y arquitectura de una aplicación móvil Android. Este repos
 |---|---|
 | **API** | Portal de Datos Abiertos de Colombia, sobre la plataforma Socrata (SODA API) |
 | **URL base** | `https://www.datos.gov.co/resource/` |
-| **Autenticación** | No requiere API key. Se puede usar un *App Token* gratuito (header `X-App-Token`) para tener un límite de peticiones más alto |
+| **Autenticación** | No requiere API key para funcionar. Opcionalmente admite una **key de Socrata** (Key ID + Key Secret, enviada con autenticación Basic en el header `Authorization`) para tener más cupo de peticiones. Ver [Key opcional de Socrata](#-key-opcional-de-socrata) |
 | **Formato** | JSON |
 | **Costo** | Gratis |
 | **Fuente de los datos** | INVIMA y Ministerio de Salud y Protección Social |
@@ -222,7 +222,8 @@ flowchart LR
     end
 
     subgraph DATA["Capa de Datos"]
-        REPO["MedicamentoRepository"]
+        REPO["MedicamentosRepository · interfaz"]
+        IMPL["MedicamentosRepositoryImpl"]
         REMOTE["RemoteDataSource · Retrofit + Gson"]
         LOCAL["LocalDataSource · Room + DataStore"]
         OCR["TextRecognizer · CameraX + ML Kit"]
@@ -237,8 +238,9 @@ flowchart LR
     VM1 --> REPO
     VM3 --> REPO
     VM2 --> OCR
-    REPO --> REMOTE
-    REPO --> LOCAL
+    REPO -.->|"la implementa"| IMPL
+    IMPL --> REMOTE
+    IMPL -.->|"pendiente"| LOCAL
     REMOTE -->|"HTTPS GET · JSON"| API
 ```
 
@@ -248,7 +250,7 @@ flowchart LR
 |---|---|
 | **UI (Jetpack Compose)** | Dibuja las pantallas y observa el estado del ViewModel. No contiene lógica de negocio. |
 | **ViewModel** | Guarda el estado de cada pantalla (`UiState`) y sobrevive a la rotación. Lanza las corrutinas y llama al repositorio. |
-| **Repository** | Fuente única de verdad. Por ahora solo trae datos de la API y **agrupa las filas** en las entidades del modelo (Medicamento, Principio Activo...); decidir entre API y base local es trabajo pendiente. |
+| **Repository** | Es una **interfaz** (`MedicamentosRepository`, con `buscar` y `cargarDetalle`) y una implementación (`MedicamentosRepositoryImpl`). Los ViewModels dependen de la interfaz, no de Retrofit. Fuente única de verdad. Por ahora solo trae datos de la API y **agrupa las filas** en las entidades del modelo (Medicamento, Principio Activo...); decidir entre API y base local es trabajo pendiente. |
 | **RemoteDataSource** | Interfaz de Retrofit con los endpoints de datos.gov.co. **Implementado** (`MedicamentosApi` + `RetrofitClient`). |
 | **LocalDataSource** | Room para los recientes y favoritos. DataStore para las preferencias del usuario. **Pendiente**: hoy los recientes viven en memoria en el ViewModel. |
 | **TextRecognizer** | Conecta CameraX con ML Kit para extraer el texto de la caja. **Pendiente**: la pantalla de Escáner ya tiene la UI, pero avisa que la cámara aún no está integrada. |
@@ -259,9 +261,9 @@ flowchart LR
 |---|---|
 | **Patrón MVVM** | UI → ViewModel → Repository → Fuente remota/local, como en el diagrama. |
 | **Cliente HTTP** | **Retrofit** con convertidor **Gson**. Los parámetros de Socrata (`$q`, `$where`, `$select`, `$limit`) se envían como `@Query`. |
-| **Asincronía** | **Kotlin Coroutines**: funciones `suspend` en el repositorio, ejecutadas en `Dispatchers.IO`, lanzadas desde `viewModelScope`. |
+| **Asincronía** | **Kotlin Coroutines**: funciones `suspend` (las de Retrofit en `MedicamentosApi`), lanzadas desde `viewModelScope`. No se usa `Dispatchers` en ningún lado: Retrofit ejecuta la red fuera del hilo principal por dentro, así que llamar sus funciones `suspend` desde el hilo principal es seguro. |
 | **Estados de UI** | Cada pantalla maneja **Loading / Success / Error** (más *Empty* en Resultados) con un `UiState` observado por Compose. |
-| **Seguridad** | La API no exige key. Si se usa un *App Token* de Socrata, va en `local.properties` (excluido por `.gitignore`) y se inyecta con `BuildConfig`. **Nunca se sube al repositorio.** |
+| **Seguridad** | La API no exige key. Si se usa la key opcional de Socrata (`SOCRATA_KEY_ID` y `SOCRATA_KEY_SECRET`), va en `local.properties` (excluido por `.gitignore`) y se inyecta con `BuildConfig`. **Nunca se sube al repositorio.** Ver [Key opcional de Socrata](#-key-opcional-de-socrata). |
 | **Permisos** | El permiso `CAMERA` se pide en tiempo de ejecución, solo cuando el usuario toca "Escanear". La app funciona igual si lo niega. |
 | **Paginación** | `$limit` y `$offset` para no descargar miles de registros a la vez. |
 
@@ -269,7 +271,8 @@ flowchart LR
 
 | Librería | Uso | Estado |
 |---|---|---|
-| Jetpack Compose + Navigation Compose | UI declarativa y navegación entre pantallas, con paso de argumentos (`query`, `expediente`, `principio_activo`) | ✅ Implementada |
+| Jetpack Compose + Navigation Compose | UI declarativa y navegación entre pantallas, con rutas type-safe y argumentos tipados (`consulta`, `expediente`) | ✅ Implementada |
+| Kotlinx Serialization | Rutas type-safe (`@Serializable`) para Navigation Compose | ✅ Implementada |
 | Lifecycle ViewModel (Compose) | ViewModels conscientes del ciclo de vida | ✅ Implementada |
 | Retrofit + Gson | Consumo de la API REST y conversión de JSON | ✅ Implementada |
 | OkHttp Logging Interceptor | Depurar las peticiones durante el desarrollo | ✅ Implementada |
@@ -315,6 +318,17 @@ URL base: `https://www.datos.gov.co/resource/`
 }
 ```
 
+### 🔑 Key opcional de Socrata
+
+La API **funciona sin ninguna key**. Con una key de Socrata se obtiene más cupo de peticiones. Para usarla, agrega esto en `local.properties` (archivo excluido por `.gitignore`, no se sube a Git):
+
+```properties
+SOCRATA_KEY_ID=tu_key_id
+SOCRATA_KEY_SECRET=tu_key_secret
+```
+
+`app/build.gradle.kts` las lee y las expone como `BuildConfig.SOCRATA_KEY_ID` y `BuildConfig.SOCRATA_KEY_SECRET`. `RetrofitClient` agrega el header `Authorization` (Basic) **solo si ambas tienen valor**. Si faltan o están vacías, la petición sale sin header y la app funciona igual.
+
 ---
 
 ## 🧱 Hito 5 · Proyecto base en Android Studio
@@ -328,7 +342,29 @@ URL base: `https://www.datos.gov.co/resource/`
 | Build configuration language | Kotlin DSL (`build.gradle.kts`) |
 | Minimum SDK | API 24 (Android 7.0) |
 
-✅ El proyecto se subió **tal cual lo genera Android Studio**. No tiene clases, paquetes ni lógica adicional, y `MainActivity` no fue modificada.
+✅ El **commit inicial** subió el proyecto tal cual lo genera Android Studio (evidencia más abajo). Desde entonces el proyecto evolucionó y **hoy incluye la implementación completa**: pantallas en Compose, ViewModels con `StateFlow`, repositorio (interfaz + implementación), cliente Retrofit y navegación type-safe. `MainActivity` solo llama a `AppNavigation()` dentro de `RemediaTheme`.
+
+Explicación detallada de cada archivo y del flujo de datos: [docs/tutorial_arquitectura.md](docs/tutorial_arquitectura.md).
+
+### Estructura de carpetas actual
+
+```text
+com.example.remedia/
+├── MainActivity.kt
+├── data/
+│   ├── api/          MedicamentosApi.kt
+│   ├── dto/          MedicamentoDto.kt, PrecioDto.kt
+│   ├── model/        Medicamento.kt
+│   ├── network/      RetrofitClient.kt
+│   └── repository/   MedicamentosRepository.kt (interfaz),
+│                     MedicamentosRepositoryImpl.kt
+├── presentation/
+│   ├── components/   8 componentes reutilizables
+│   ├── navigation/   Destinations.kt, AppNavigation.kt
+│   ├── screens/      Inicio, Resultados, Detalle, Escaner
+│   └── viewmodel/    BusquedaViewModel, DetalleViewModel, EscanerViewModel, EstadoUi
+└── ui/theme/
+```
 
 **Evidencia, el proyecto corriendo en el emulador:**
 

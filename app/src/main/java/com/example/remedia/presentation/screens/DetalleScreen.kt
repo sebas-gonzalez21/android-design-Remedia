@@ -56,7 +56,7 @@ import com.example.remedia.presentation.components.EstadoContenido
 import com.example.remedia.presentation.components.entradaSuave
 import com.example.remedia.presentation.viewmodel.DetalleViewModel
 import com.example.remedia.presentation.viewmodel.EstadoUi
-import com.example.remedia.presentation.viewmodel.MedicamentoUi
+import com.example.remedia.data.model.Medicamento
 import com.example.remedia.ui.theme.Borde
 import com.example.remedia.ui.theme.Fondo
 import com.example.remedia.ui.theme.FormulaFondo
@@ -92,8 +92,11 @@ fun DetalleScreen(
     Scaffold(
         containerColor = Fondo,
         bottomBar = {
-            if (estado is EstadoUi.Exito) {
-                val med = estado.datos
+            // 'estado' es una propiedad delegada (by): Kotlin no permite smart cast sobre ella,
+            // así que se copia a una variable local antes de comprobar el tipo.
+            val estadoActual = estado
+            if (estadoActual is EstadoUi.Exito) {
+                val med = estadoActual.datos
                 BarraEquivalentes(
                     onClick = { onVerEquivalentes(med.principiosActivos.firstOrNull() ?: med.nombre) }
                 )
@@ -279,7 +282,7 @@ fun DetalleScreen(
 }
 
 @Composable
-private fun Cabecera(med: MedicamentoUi, onVolver: () -> Unit) {
+private fun Cabecera(med: Medicamento, onVolver: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()

@@ -2,7 +2,9 @@ package com.example.remedia.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.remedia.data.model.Medicamento
 import com.example.remedia.data.repository.MedicamentosRepository
+import com.example.remedia.data.repository.MedicamentosRepositoryImpl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,11 +15,11 @@ import kotlinx.coroutines.launch
  * el precio regulado (nauz-qkjw) y la venta libre (xzwx-qpja) — ver README Hito 1/4.
  */
 class DetalleViewModel(
-    private val repository: MedicamentosRepository = MedicamentosRepository
+    private val repository: MedicamentosRepository = MedicamentosRepositoryImpl()
 ) : ViewModel() {
 
-    private val _estado = MutableStateFlow<EstadoUi<MedicamentoUi>>(EstadoUi.Cargando)
-    val estado: StateFlow<EstadoUi<MedicamentoUi>> = _estado.asStateFlow()
+    private val _estado = MutableStateFlow<EstadoUi<Medicamento>>(EstadoUi.Cargando)
+    val estado: StateFlow<EstadoUi<Medicamento>> = _estado.asStateFlow()
 
     fun cargar(expediente: String) {
         _estado.value = EstadoUi.Cargando

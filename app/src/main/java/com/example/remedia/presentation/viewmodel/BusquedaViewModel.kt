@@ -2,7 +2,9 @@ package com.example.remedia.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.remedia.data.model.Medicamento
 import com.example.remedia.data.repository.MedicamentosRepository
+import com.example.remedia.data.repository.MedicamentosRepositoryImpl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,11 +12,11 @@ import kotlinx.coroutines.launch
 
 /**
  * Estado de Inicio (recientes) y Resultados (búsqueda). Una sola instancia se
- * comparte entre esas dos pantallas (ver RemediaNavHost) para que el historial
+ * comparte entre esas dos pantallas (ver AppNavigation) para que el historial
  * de búsquedas recientes persista al navegar.
  */
 class BusquedaViewModel(
-    private val repository: MedicamentosRepository = MedicamentosRepository
+    private val repository: MedicamentosRepository = MedicamentosRepositoryImpl()
 ) : ViewModel() {
 
     private val historial = mutableListOf<String>()
@@ -22,8 +24,8 @@ class BusquedaViewModel(
     private val _recientes = MutableStateFlow<EstadoUi<List<String>>>(EstadoUi.Vacio)
     val recientes: StateFlow<EstadoUi<List<String>>> = _recientes.asStateFlow()
 
-    private val _resultados = MutableStateFlow<EstadoUi<List<MedicamentoUi>>>(EstadoUi.Cargando)
-    val resultados: StateFlow<EstadoUi<List<MedicamentoUi>>> = _resultados.asStateFlow()
+    private val _resultados = MutableStateFlow<EstadoUi<List<Medicamento>>>(EstadoUi.Cargando)
+    val resultados: StateFlow<EstadoUi<List<Medicamento>>> = _resultados.asStateFlow()
 
     fun buscar(texto: String) {
         if (texto.isBlank()) return

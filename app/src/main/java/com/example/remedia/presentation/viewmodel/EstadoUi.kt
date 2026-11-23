@@ -1,9 +1,8 @@
 package com.example.remedia.presentation.viewmodel
 
 /**
- * Los 4 estados visuales de cada pantalla.
- * TEMPORAL: cuando el compañero del ViewModel entregue su sealed class de estado,
- * se reemplaza este archivo (o se alinea el nombre) y las pantallas no cambian.
+ * Los 4 estados visuales de cada pantalla: Cargando, Exito, Vacio y Error.
+ * Lo usan todos los ViewModels y lo pinta EstadoContenido.
  */
 sealed interface EstadoUi<out T> {
     data object Cargando : EstadoUi<Nothing>

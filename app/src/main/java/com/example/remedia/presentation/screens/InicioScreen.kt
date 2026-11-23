@@ -77,7 +77,7 @@ fun InicioScreen(
     onEscanear: () -> Unit,
     onReintentar: () -> Unit = {}
 ) {
-    val recientes by viewModel.recientes.collectAsState()
+    val recientes = viewModel.recientes.collectAsState().value
     var texto by remember { mutableStateOf("") }
 
     Scaffold(containerColor = Fondo) { padding ->

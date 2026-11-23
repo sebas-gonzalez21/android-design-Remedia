@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.remedia.presentation.viewmodel.MedicamentoUi
+import com.example.remedia.data.model.Medicamento
 import com.example.remedia.ui.theme.Borde
 import com.example.remedia.ui.theme.Fondo
 import com.example.remedia.ui.theme.Gris400
@@ -45,7 +45,7 @@ import com.example.remedia.ui.theme.Vencido
 /** Tarjeta de un medicamento en la lista de resultados (estilo Stitch). */
 @Composable
 fun MedicamentoCard(
-    medicamento: MedicamentoUi,
+    medicamento: Medicamento,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     indice: Int = 0
