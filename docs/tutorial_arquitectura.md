@@ -149,7 +149,7 @@ sealed interface EstadoUi<out T> {
 **`BusquedaViewModel.kt`**
 Sirve a Inicio y a Resultados. Expone dos `StateFlow`:
 
-- `recientes: EstadoUi<List<String>>`: últimas 10 búsquedas, en memoria (no persisten al cerrar la app).
+- `recientes: EstadoUi<List<String>>`: últimas 10 búsquedas, persistidas con DataStore (sobreviven a la rotación y a la muerte del proceso).
 - `resultados: EstadoUi<List<Medicamento>>`: resultado de la búsqueda actual.
 
 `buscar(texto)` ignora textos vacíos, registra el reciente, emite `Cargando`, llama al repositorio y emite `Exito(lista)`, `Vacio` (lista vacía) o `Error(mensaje)` si hubo excepción.
@@ -158,7 +158,7 @@ Sirve a Inicio y a Resultados. Expone dos `StateFlow`:
 Expone `estado: EstadoUi<Medicamento>`. `cargar(expediente)` emite `Cargando`, llama a `cargarDetalle` y emite `Exito`, o `Error` si el repositorio devolvió `null` ("No encontramos este medicamento...") o lanzó una excepción.
 
 **`EscanerViewModel.kt`**
-`capturar()` emite un `Error` honesto: la cámara aún no está implementada (faltan CameraX y ML Kit). Es un pendiente funcional, no de arquitectura.
+No depende de Android: `onTextoReconocido(listaDeLineas)` guarda la mejor línea detectada, `capturar()` la confirma como `Exito` (o `Vacio` si no hay texto) y `onPermisoDenegado()` / `onCamaraError()` exponen el motivo del fallo. `TextoMedicamentoExtractor` decide qué línea es el nombre del medicamento, con lógica pura y pruebas locales.
 
 > `StateFlow` guarda siempre un último valor. La pantalla lo observa y se redibuja cuando cambia; el ViewModel sobrevive a la rotación del teléfono, así que el estado no se pierde.
 
@@ -194,7 +194,7 @@ Las pantallas no tienen lógica de negocio: observan el estado, dibujan y avisan
 | `InicioScreen` | Buscador, botón "Escanear caja" y recientes (observa `recientes`). |
 | `ResultadosScreen` | Lanza `viewModel.buscar(consulta)` con `LaunchedEffect(consulta)`, observa `resultados` y ofrece filtros de venta. |
 | `DetalleScreen` | Lanza `viewModel.cargar(expediente)` con `LaunchedEffect(expediente)` y observa `estado`. |
-| `EscanerScreen` | UI del escáner; `capturar()` avisa que la cámara no está lista. |
+| `EscanerScreen` | `AndroidView` con `PreviewView` de CameraX, permiso en tiempo de ejecución, analizador con ML Kit y retícula; el obturador confirma el texto detectado. |
 
 ### 4.7 Componentes reutilizables
 
@@ -264,5 +264,5 @@ sequenceDiagram
 ## 6. Pendientes
 
 - **Pruebas unitarias** de `BusquedaViewModel` y `DetalleViewModel`: agregar `kotlinx-coroutines-test` y un repositorio falso que implemente `MedicamentosRepository`. Hoy solo existe el `ExampleUnitTest` de la plantilla.
-- **Escáner**: integrar CameraX y ML Kit para leer el nombre de la caja.
-- **Persistencia**: los recientes viven en memoria; Room/DataStore están pendientes.
+- **Escáner**: integrado con CameraX y ML Kit; siguiente paso opcional sería reconocer también la concentración y el laboratorio para afinar la búsqueda.
+- **Persistencia**: los recientes ya se guardan con DataStore; Room sigue pendiente para favoritos y caché sin conexión.

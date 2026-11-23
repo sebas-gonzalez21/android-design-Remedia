@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,18 +28,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedia.presentation.components.BotonCircular
 import com.example.remedia.presentation.components.ChipFiltro
 import com.example.remedia.presentation.components.EstadoContenido
@@ -56,22 +57,29 @@ private enum class Filtro(val etiqueta: String) {
     TODOS("Todos"), VENTA_LIBRE("Venta libre"), CON_FORMULA("Con fórmula")
 }
 
+/** Guarda índice y desplazamiento para que volver del Detalle no reinicie el scroll. */
+private val ListaStateSaver = Saver<LazyListState, ArrayList<Int>>(
+    save = { arrayListOf(it.firstVisibleItemIndex, it.firstVisibleItemScrollOffset) },
+    restore = { LazyListState(it[0], it[1]) }
+)
+
 /**
  * P3 · Resultados (estilo Stitch). Lista con LazyColumn (nunca Column).
- * Recibe el ViewModel: lanza la búsqueda con LaunchedEffect(consulta) y
- * observa el resultado con collectAsState(). El filtro es estado temporal
- * de la UI, por eso vive en remember.
+ * La búsqueda se lanza con LaunchedEffect(consulta), pero el ViewModel cachea el
+ * resultado: al volver del Detalle se restaura el estado sin otra petición.
+ * Filtro y scroll sobreviven a la rotación y al back stack (rememberSaveable).
  */
 @Composable
 fun ResultadosScreen(
     consulta: String,
-    viewModel: BusquedaViewModel = viewModel(),
+    viewModel: BusquedaViewModel,
     onVolver: () -> Unit,
     onMedicamentoClick: (String) -> Unit
 ) {
     LaunchedEffect(consulta) { viewModel.buscar(consulta) }
-    val estado by viewModel.resultados.collectAsState()
-    var filtro by remember { mutableStateOf(Filtro.TODOS) }
+    val estado by viewModel.resultados.collectAsStateWithLifecycle()
+    var filtro by rememberSaveable { mutableStateOf(Filtro.TODOS) }
+    val listaState = rememberSaveable(saver = ListaStateSaver) { LazyListState(0, 0) }
 
     Scaffold(containerColor = Fondo) { padding ->
         Column(
@@ -153,7 +161,7 @@ fun ResultadosScreen(
             EstadoContenido(
                 estado = estado,
                 mensajeVacio = "No encontramos medicamentos con esa búsqueda.",
-                onReintentar = { viewModel.buscar(consulta) }
+                onReintentar = { viewModel.buscar(consulta, forzar = true) }
             ) { lista ->
                 val visibles = when (filtro) {
                     Filtro.TODOS -> lista
@@ -162,6 +170,7 @@ fun ResultadosScreen(
                 }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
+                    state = listaState,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {

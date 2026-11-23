@@ -38,8 +38,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -49,7 +49,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedia.presentation.components.BotonCircular
 import com.example.remedia.presentation.components.EstadoChip
 import com.example.remedia.presentation.components.EstadoContenido
@@ -75,19 +74,19 @@ import com.example.remedia.ui.theme.VigenteFondo
 
 /**
  * P4 · Detalle / Ficha técnica (estilo Stitch).
- * Recibe el ViewModel: lanza la carga con LaunchedEffect(expediente) y
- * observa el resultado con collectAsState(). Solo muestra datos que sí
- * entrega la API: nada de dosis ni excipientes.
+ * Recibe el ViewModel: lanza la carga con LaunchedEffect(expediente) y observa el
+ * resultado con collectAsStateWithLifecycle(). El ViewModel cachea la ficha, así
+ * que revisitarla no repite las peticiones. Solo muestra datos que sí entrega la API.
  */
 @Composable
 fun DetalleScreen(
     expediente: String,
-    viewModel: DetalleViewModel = viewModel(),
+    viewModel: DetalleViewModel,
     onVolver: () -> Unit,
     onVerEquivalentes: (String) -> Unit
 ) {
     LaunchedEffect(expediente) { viewModel.cargar(expediente) }
-    val estado by viewModel.estado.collectAsState()
+    val estado by viewModel.estado.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = Fondo,
@@ -106,7 +105,7 @@ fun DetalleScreen(
         EstadoContenido(
             estado = estado,
             mensajeVacio = "No se encontró este medicamento.",
-            onReintentar = { viewModel.cargar(expediente) },
+            onReintentar = { viewModel.cargar(expediente, forzar = true) },
             modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
         ) { med ->
             LazyColumn(

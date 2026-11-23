@@ -6,16 +6,58 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * El visor de cámara todavía no está integrado (falta CameraX, ver EscanerScreen).
- * Por ahora "capturar" informa honestamente que esa función no está lista,
- * en vez de simular un resultado falso.
+ * Estado del escáner, separado de CameraX y de ML Kit.
+ *
+ * El analizador de imágenes solo entrega texto; este ViewModel decide cuál línea
+ * es el nombre del medicamento y cuándo el usuario lo confirma con el obturador.
+ * Así la lógica se prueba sin cámara y la pantalla no acumula estado propio.
  */
 class EscanerViewModel : ViewModel() {
+
+    private val _textoDetectado = MutableStateFlow("")
+    val textoDetectado: StateFlow<String> = _textoDetectado.asStateFlow()
 
     private val _estado = MutableStateFlow<EstadoUi<String>>(EstadoUi.Vacio)
     val estado: StateFlow<EstadoUi<String>> = _estado.asStateFlow()
 
+    /** EL OCR va entregando resultados; guardamos el mejor sin confirmarlo todavía. */
+    fun onTextoReconocido(textos: List<String>) {
+        val candidato = TextoMedicamentoExtractor.extraer(textos) ?: ""
+        if (candidato != _textoDetectado.value) _textoDetectado.value = candidato
+    }
+
+    /** El obturador confirma el texto que estaba en el visor. */
     fun capturar() {
-        _estado.value = EstadoUi.Error("El escáner con cámara aún no está implementado. Usa el buscador de texto.")
+        val texto = _textoDetectado.value
+        _estado.value = if (texto.isBlank()) {
+            EstadoUi.Vacio
+        } else {
+            EstadoUi.Exito(texto)
+        }
+    }
+
+    fun onPermisoConcedido() {
+        if (_estado.value !is EstadoUi.Exito) _estado.value = EstadoUi.Vacio
+    }
+
+    fun onPermisoDenegado() {
+        if (_estado.value !is EstadoUi.Exito) {
+            _estado.value = EstadoUi.Error(
+                "Necesitamos permiso de cámara para leer el nombre. Actívalo en Ajustes o toca Reintentar."
+            )
+        }
+    }
+
+    fun onCamaraError(causa: String?) {
+        val detalle = causa?.trim()?.takeUnless { it.isBlank() }?.let { " ($it)" }.orEmpty()
+        _estado.value = EstadoUi.Error(
+            "No se pudo abrir la cámara.$detalle Cierra otra app que la esté usando e inténtalo de nuevo."
+        )
+    }
+
+    /** "Reintentar" y "Escribir el nombre" vuelven al visor limpio. */
+    fun reiniciar() {
+        _textoDetectado.value = ""
+        _estado.value = EstadoUi.Vacio
     }
 }

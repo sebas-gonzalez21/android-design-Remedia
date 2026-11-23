@@ -167,7 +167,7 @@ flowchart TD
 | | |
 |---|---|
 | **Qué muestra** | Barra de búsqueda, botón grande "📷 Escanear caja" y una lista de **medicamentos consultados recientemente** (de esta sesión). |
-| **Datos** | Los recientes se guardan en memoria en el `BusquedaViewModel` mientras la app está abierta. Todavía no persisten en Room entre reinicios (ver Hito 4, buenas prácticas pendientes). Esta pantalla no llama a la API directamente. |
+| **Datos** | Los recientes se guardan en `BusquedaViewModel` y se persisten con **DataStore** (JSON ordenado, máximo 10), así que sobreviven a la rotación y a que se mate el proceso. Esta pantalla no llama a la API directamente. |
 | **Acciones** | Escribir un nombre y buscar → **P3** enviando `query`. Tocar "Escanear" → **P2**. Tocar un reciente → **P3**, repitiendo esa búsqueda como `query`. |
 
 ### Pantalla 2 · Escáner
@@ -176,9 +176,9 @@ flowchart TD
 
 | | |
 |---|---|
-| **Qué muestra** | Vista de la cámara con un recuadro guía ("Enfoca el nombre del medicamento"), el texto detectado en tiempo real y un botón "Usar este nombre". |
-| **Datos** | No llama a la API. La UI ya está lista para **CameraX** + **ML Kit Text Recognition**, pero la integración real de cámara todavía no está hecha: por ahora el botón de capturar responde honestamente que la función no está disponible y sugiere escribir el nombre. |
-| **Acciones** | Cuando la cámara esté integrada: confirmar el texto detectado → **P3** enviando `query`. Hoy: "Escribir el nombre" vuelve a Inicio. |
+| **Qué muestra** | Vista previa real de la cámara con un recuadro guía ("Enfoca el nombre del medicamento"), el texto detectado en tiempo real y el botón "Buscar este medicamento" cuando confirmas con el obturador. |
+| **Datos** | No llama a la API. **CameraX** enlaza preview y análisis al ciclo de vida; **ML Kit Text Recognition** (modelo incluido en el APK) lee los bloques de texto y `TextoMedicamentoExtractor` elige la línea con el nombre, descartando registros, lotes y números. El permiso `CAMERA` se pide al entrar y se puede volver a pedir desde "Reintentar". |
+| **Acciones** | Confirmar el texto detectado → **P3** enviando `query` (con `popUpTo Inicio`). "Escribir el nombre" y la flecha vuelven a Inicio. Si se niega el permiso o falla la cámara, se muestra el motivo y un botón de reintento. |
 
 ### Pantalla 3 · Resultados (lista principal)
 
@@ -186,8 +186,8 @@ flowchart TD
 
 | | |
 |---|---|
-| **Qué muestra** | Lista (`LazyColumn`) de medicamentos. Cada tarjeta muestra el nombre comercial, el laboratorio, la forma farmacéutica y una **etiqueta de estado** (🟢 Vigente / 🔴 Vencido). Tiene filtros por tipo de venta (Todos / Venta libre / Con fórmula). |
-| **Endpoints** | `GET i7cb-raxc.json?$q={query}`. "Ver equivalentes" reutiliza este mismo endpoint, enviando el principio activo como `query` en vez de un endpoint separado. |
+| **Qué muestra** | Lista (`LazyColumn`) de medicamentos. Cada tarjeta muestra el nombre comercial, el laboratorio, la forma farmacéutica, el estado (🟢 Vigente / 🔴 Vencido) y la etiqueta **VENTA LIBRE / REQUIERE FÓRMULA** calculada desde el catálogo de venta libre. Tiene filtros por tipo de venta (Todos / Venta libre / Con fórmula). |
+| **Endpoints** | `GET i7cb-raxc.json?$q={query}` con `$select=expediente,producto,titular,estadoregistro,formafarmaceutica,descripcionatc,principioactivo`. "Ver equivalentes" reutiliza este mismo endpoint, enviando el principio activo como `query` en vez de un endpoint separado. |
 | **Acciones** | Tocar un medicamento → **P4** enviando `expediente`. Estados: *Cargando* (skeleton), *Éxito* (lista), *Vacío* ("No encontramos ese medicamento") y *Error* (botón "Reintentar"). |
 
 ### Pantalla 4 · Detalle del medicamento
@@ -197,7 +197,7 @@ flowchart TD
 | | |
 |---|---|
 | **Qué muestra** | Nombre comercial; **para qué sirve** (grupo ATC en lenguaje sencillo); **principios activos**; insignia **"Venta libre" / "Requiere fórmula"**; laboratorio; registro INVIMA y su estado; precio máximo legal cuando existe; botón **"Ver equivalentes"**. |
-| **Endpoints** | `GET i7cb-raxc.json?expediente={expediente}`, `GET nauz-qkjw.json?$where=starts_with(cum, '{expediente}-')` y `GET xzwx-qpja.json?$q={principio_activo}` |
+| **Endpoints** | `GET i7cb-raxc.json?expediente={expediente}`, `GET nauz-qkjw.json?$where=starts_with(cum, '{expediente}-')` y `GET xzwx-qpja.json?$select=principioactivo` (catálogo de venta libre, descargado una sola vez por sesión). Precio y venta libre se consultan en paralelo. |
 | **Acciones** | "Ver equivalentes" → **P3** enviando `principio_activo`. El ícono "Compartir" ya está en la UI, pero su acción todavía no está implementada. No hay botón de "Guardar/favoritos" en esta versión. |
 
 ---
@@ -252,8 +252,8 @@ flowchart LR
 | **ViewModel** | Guarda el estado de cada pantalla (`UiState`) y sobrevive a la rotación. Lanza las corrutinas y llama al repositorio. |
 | **Repository** | Es una **interfaz** (`MedicamentosRepository`, con `buscar` y `cargarDetalle`) y una implementación (`MedicamentosRepositoryImpl`). Los ViewModels dependen de la interfaz, no de Retrofit. Fuente única de verdad. Por ahora solo trae datos de la API y **agrupa las filas** en las entidades del modelo (Medicamento, Principio Activo...); decidir entre API y base local es trabajo pendiente. |
 | **RemoteDataSource** | Interfaz de Retrofit con los endpoints de datos.gov.co. **Implementado** (`MedicamentosApi` + `RetrofitClient`). |
-| **LocalDataSource** | Room para los recientes y favoritos. DataStore para las preferencias del usuario. **Pendiente**: hoy los recientes viven en memoria en el ViewModel. |
-| **TextRecognizer** | Conecta CameraX con ML Kit para extraer el texto de la caja. **Pendiente**: la pantalla de Escáner ya tiene la UI, pero avisa que la cámara aún no está integrada. |
+| **LocalDataSource** | DataStore para el historial de recientes (**implementado**). Room para favoritos y caché sin conexión; **pendiente**. |
+| **TextRecognizer** | **Implementado**: el analizador de CameraX entrega cada frame a ML Kit; el ViewModel recibe solo `List<String>`, elige la mejor línea y el obturador la confirma. La lógica de extracción es pura y se prueba sin cámara. |
 
 ### Buenas prácticas planificadas
 
@@ -263,8 +263,9 @@ flowchart LR
 | **Cliente HTTP** | **Retrofit** con convertidor **Gson**. Los parámetros de Socrata (`$q`, `$where`, `$select`, `$limit`) se envían como `@Query`. |
 | **Asincronía** | **Kotlin Coroutines**: funciones `suspend` (las de Retrofit en `MedicamentosApi`), lanzadas desde `viewModelScope`. No se usa `Dispatchers` en ningún lado: Retrofit ejecuta la red fuera del hilo principal por dentro, así que llamar sus funciones `suspend` desde el hilo principal es seguro. |
 | **Estados de UI** | Cada pantalla maneja **Loading / Success / Error** (más *Empty* en Resultados) con un `UiState` observado por Compose. |
-| **Seguridad** | La API no exige key. Si se usa la key opcional de Socrata (`SOCRATA_KEY_ID` y `SOCRATA_KEY_SECRET`), va en `local.properties` (excluido por `.gitignore`) y se inyecta con `BuildConfig`. **Nunca se sube al repositorio.** Ver [Key opcional de Socrata](#-key-opcional-de-socrata). |
-| **Permisos** | El permiso `CAMERA` se pide en tiempo de ejecución, solo cuando el usuario toca "Escanear". La app funciona igual si lo niega. |
+| **Seguridad** | La API no exige key. Si se usa la key opcional de Socrata (`SOCRATA_KEY_ID` y `SOCRATA_KEY_SECRET`), va en `local.properties` (excluido por `.gitignore`) y se inyecta con `BuildConfig`. **Nunca se sube al repositorio**, y como todo `BuildConfig` es extraíble del APK: trátala como configuración pública de solo lectura, no como secreto. Ver [Key opcional de Socrata](#-key-opcional-de-socrata). |
+| **Corrutinas** | Las búsquedas cancelan el `Job` anterior, relanzan `CancellationException` (nunca la convierten en error) y cachean el estado por consulta para no repetir peticiones al volver del Detalle. |
+| **Permisos** | El permiso `CAMERA` se pide en tiempo de ejecución al entrar en el Escáner (es decir, después de tocar "Escanear"). Si se niega, se muestra un mensaje y se puede volver a pedir; la app sigue funcionando con el buscador de texto. |
 | **Paginación** | `$limit` y `$offset` para no descargar miles de registros a la vez. |
 
 ### Librerías
@@ -277,10 +278,10 @@ flowchart LR
 | Retrofit + Gson | Consumo de la API REST y conversión de JSON | ✅ Implementada |
 | OkHttp Logging Interceptor | Depurar las peticiones durante el desarrollo | ✅ Implementada |
 | Kotlin Coroutines | Asincronía (`viewModelScope`, funciones `suspend`) | ✅ Implementada |
-| Room | Historial de recientes y favoritos sin conexión | 🔲 Pendiente |
-| DataStore | Preferencias del usuario | 🔲 Pendiente |
-| CameraX | Vista previa y captura de la cámara | 🔲 Pendiente |
-| ML Kit Text Recognition | Leer el nombre del medicamento desde la foto | 🔲 Pendiente |
+| Room | Favoritos y caché de medicamentos sin conexión | 🔲 Pendiente |
+| DataStore | Historial de recientes (✅ Implementado) y preferencias del usuario | 🔶 Parcial |
+| CameraX | Vista previa real y análisis de frames (1.3.4), enlazada al ciclo de vida | ✅ Implementada |
+| ML Kit Text Recognition | Lectura de texto del empaque (modelo incluido, 16.0.1) | ✅ Implementada |
 | Coil | Cargar imágenes (íconos por forma farmacéutica) | 🔲 Pendiente |
 
 ### Tabla de endpoints
@@ -289,10 +290,10 @@ URL base: `https://www.datos.gov.co/resource/`
 
 | # | Endpoint | Método HTTP | Parámetros | Propósito en la App | Pantalla |
 |---|---|---|---|---|---|
-| 1 | `i7cb-raxc.json` | GET | `$q={texto}`, `$select=expediente,producto,titular,estadoregistro,formafarmaceutica`, `$group=` (mismos campos), `$limit=50` | **Buscar medicamentos** por nombre comercial, escrito o leído de la foto. También se usa para **equivalentes**, enviando el principio activo como `$q` (no hay un endpoint separado). | P3 |
+| 1 | `i7cb-raxc.json` | GET | `$q={texto}`, `$select=expediente,producto,titular,estadoregistro,formafarmaceutica,descripcionatc,principioactivo`, `$group=` (mismos campos), `$limit=50` | **Buscar medicamentos** por nombre comercial, escrito o leído de la foto. También se usa para **equivalentes**, enviando el principio activo como `$q` (no hay un endpoint separado). | P3 |
 | 2 | `i7cb-raxc.json` | GET | `expediente={expediente}`, `$limit=1` | **Detalle**: principio activo, laboratorio, ATC y registro del medicamento | P4 |
 | 3 | `nauz-qkjw.json` | GET | `$where=starts_with(cum, '{expediente}-')` | **Precio máximo legal** de cada presentación | P4 |
-| 4 | `xzwx-qpja.json` | GET | `$q={principio_activo}` | Saber si el principio activo es de **venta libre** | P4 |
+| 4 | `xzwx-qpja.json` | GET | `$select=principioactivo`, `$limit=5000` | Catálogo de **venta libre**: una sola petición por sesión, reutilizada por la lista (filtros y badge) y el detalle | P3 y P4 |
 
 **Ejemplos reales** (se pueden abrir en el navegador):
 - Buscar "Dolex": <https://www.datos.gov.co/resource/i7cb-raxc.json?$q=dolex&$limit=5>
@@ -327,7 +328,7 @@ SOCRATA_KEY_ID=tu_key_id
 SOCRATA_KEY_SECRET=tu_key_secret
 ```
 
-`app/build.gradle.kts` las lee y las expone como `BuildConfig.SOCRATA_KEY_ID` y `BuildConfig.SOCRATA_KEY_SECRET`. `RetrofitClient` agrega el header `Authorization` (Basic) **solo si ambas tienen valor**. Si faltan o están vacías, la petición sale sin header y la app funciona igual.
+`app/build.gradle.kts` las lee y las expone como `BuildConfig.SOCRATA_KEY_ID` y `BuildConfig.SOCRATA_KEY_SECRET`. `RetrofitClient` agrega el header `Authorization` (Basic) **solo si ambas tienen valor**. Si faltan o están vacías, la petición sale sin header y la app funciona igual. Estos valores quedan compilados en el APK y se pueden extraer: son una key pública y opcional de solo lectura, no un secreto. Si necesitaras una credencial realmente privada, debes proxyarla por un backend.
 
 ---
 

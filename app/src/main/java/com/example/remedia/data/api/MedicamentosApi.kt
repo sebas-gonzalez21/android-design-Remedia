@@ -31,13 +31,26 @@ interface MedicamentosApi {
         @Query("\$limit") limit: Int = 1
     ): List<PrecioDto>
 
+    /**
+     * Descarga una sola vez el catálogo de venta libre (~1000 filas) para resolver
+     * los filtros de la lista y la insignia del detalle sin una petición por card.
+     */
     @GET("resource/xzwx-qpja.json")
-    suspend fun ventaLibre(
-        @Query("\$q") principioActivo: String,
-        @Query("\$limit") limit: Int = 1
+    suspend fun ventaLibrePrincipios(
+        @Query("\$select") select: String = SELECT_VENTA_LIBRE,
+        @Query("\$limit") limit: Int = LIMITE_VENTA_LIBRE
     ): List<Map<String, Any>>
 
     companion object {
-        const val SELECT_LISTA = "expediente,producto,titular,estadoregistro,formafarmaceutica"
+        /**
+         * Campos necesarios para pintar la tarjeta de resultados. `descripcionatc` y
+         * `principioactivo` se incluyen para que "¿Para qué sirve?" y los principios
+         * activos no aparezcan como "No especificado" en la lista.
+         */
+        const val SELECT_LISTA =
+            "expediente,producto,titular,estadoregistro,formafarmaceutica,descripcionatc,principioactivo"
+
+        const val SELECT_VENTA_LIBRE = "principioactivo"
+        const val LIMITE_VENTA_LIBRE = 5000
     }
 }

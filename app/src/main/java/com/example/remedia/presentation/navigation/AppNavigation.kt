@@ -1,32 +1,53 @@
 package com.example.remedia.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.remedia.data.local.RecientesDataStore
+import com.example.remedia.data.local.RecientesDataSource
+import com.example.remedia.data.repository.MedicamentosRepository
+import com.example.remedia.data.repository.MedicamentosRepositoryImpl
 import com.example.remedia.presentation.screens.DetalleScreen
 import com.example.remedia.presentation.screens.EscanerScreen
 import com.example.remedia.presentation.screens.InicioScreen
 import com.example.remedia.presentation.screens.ResultadosScreen
 import com.example.remedia.presentation.viewmodel.BusquedaViewModel
+import com.example.remedia.presentation.viewmodel.DetalleViewModel
+import com.example.remedia.presentation.viewmodel.EscanerViewModel
+import com.example.remedia.presentation.viewmodel.MedicamentosViewModelFactory
 
 /**
  * Grafo de navegación (según el prototipo de Stitch):
  *   Inicio ──buscar──▶ Resultados ──tarjeta──▶ Detalle ──"Ver equivalentes"──▶ Resultados
  *   Inicio ──escanear──▶ Escáner ──texto──▶ Resultados
  *
- * Cada pantalla observa su propio estado con collectAsState() (ver presentation/screens).
- * Aquí se crea una sola vez BusquedaViewModel para que Inicio y Resultados
- * compartan el mismo historial de "recientes".
+ * Repositorio y fuente de recientes (DataStore) se crean una sola vez y se inyectan
+ * con una fábrica. BusquedaViewModel se comparte entre Inicio y Resultados
+ * (historial persistente y caché de búsquedas); el DetalleViewModel también se
+ * comparte para no recargar una ficha ya vista.
  */
 @Composable
 fun AppNavigation(
     navController: NavHostController = rememberNavController(),
-    busquedaViewModel: BusquedaViewModel = viewModel()
+    repository: MedicamentosRepository = remember { MedicamentosRepositoryImpl() }
 ) {
+    val applicationContext = LocalContext.current.applicationContext
+    val recientesSource: RecientesDataSource = remember(applicationContext) {
+        RecientesDataStore(applicationContext)
+    }
+    val factory = remember(repository, recientesSource) {
+        MedicamentosViewModelFactory(repository, recientesSource)
+    }
+    val busquedaViewModel: BusquedaViewModel = viewModel(factory = factory)
+    val detalleViewModel: DetalleViewModel = viewModel(factory = factory)
+    val escanerViewModel: EscanerViewModel = viewModel()
+
     NavHost(
         navController = navController,
         startDestination = Destination.Inicio
@@ -42,6 +63,7 @@ fun AppNavigation(
 
         composable<Destination.Escaner> {
             EscanerScreen(
+                viewModel = escanerViewModel,
                 onVolver = { navController.popBackStack() },
                 onUsarTexto = { texto ->
                     navController.navigate(Destination.Resultados(texto)) {
@@ -67,6 +89,7 @@ fun AppNavigation(
             val ruta: Destination.Detalle = entrada.toRoute()
             DetalleScreen(
                 expediente = ruta.expediente,
+                viewModel = detalleViewModel,
                 onVolver = { navController.popBackStack() },
                 onVerEquivalentes = { principioActivo ->
                     navController.navigate(Destination.Resultados(principioActivo))

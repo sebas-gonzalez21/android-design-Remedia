@@ -1,5 +1,14 @@
 package com.example.remedia.presentation.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -33,50 +42,150 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.remedia.presentation.viewmodel.EscanerViewModel
 import com.example.remedia.presentation.viewmodel.EstadoUi
 import com.example.remedia.ui.theme.Gris400
 import com.example.remedia.ui.theme.TealPrimary
 import com.example.remedia.ui.theme.TealSoft
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import java.util.concurrent.Executors
 
 /**
- * P2 · Escáner (estilo Stitch).
- * Estados: Cargando = leyendo el texto de la foto, Éxito = texto detectado,
- * Vacío = no se detectó texto, Error = falló la cámara o falta el permiso.
+ * P2 · Escáner (estilo Stitch) con cámara real.
  *
- * El fondo oscuro simula la cámara. Cuando se integre CameraX, el PreviewView
- * reemplaza el Box del fondo y esta pantalla no cambia su firma.
+ * CameraX entrega el preview y frames al analizador; ML Kit lee el texto y el
+ * ViewModel elige la mejor línea. El obturador confirma el texto leído y
+ * "Buscar este medicamento" navega a Resultados con esa consulta.
+ *
+ * La cámara se enlaza al ciclo de vida de la pantalla y se libera al salir:
+ * analizador, recognizer, executor y use cases. El permiso se pide al entrar
+ * y se puede volver a pedir desde "Reintentar".
  */
 @Composable
 fun EscanerScreen(
-    viewModel: EscanerViewModel = viewModel(),
+    viewModel: EscanerViewModel,
     onVolver: () -> Unit,
     onUsarTexto: (String) -> Unit
 ) {
-    val estado by viewModel.estado.collectAsState()
+    val contexto = LocalContext.current
+    val cicloVida = LocalLifecycleOwner.current
+    val estado by viewModel.estado.collectAsStateWithLifecycle()
+    val textoDetectado by viewModel.textoDetectado.collectAsStateWithLifecycle()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF0B1120), Color(0xFF1E293B), Color(0xFF0B1120))
-                )
-            )
-    ) {
+    var permisoConcedido by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(contexto, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var intento by remember { mutableStateOf(0) }
+
+    val pedalPermiso = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { concedido ->
+        permisoConcedido = concedido
+        if (concedido) viewModel.onPermisoConcedido() else viewModel.onPermisoDenegado()
+    }
+
+    LaunchedEffect(Unit) {
+        if (!permisoConcedido) pedalPermiso.launch(Manifest.permission.CAMERA)
+    }
+
+    val vistaCamara = remember(contexto) {
+        PreviewView(contexto).apply {
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            scaleType = PreviewView.ScaleType.FILL_CENTER
+        }
+    }
+
+    DisposableEffect(cicloVida, vistaCamara, permisoConcedido, intento, viewModel) {
+        if (!permisoConcedido) return@DisposableEffect onDispose {}
+
+        val executor = Executors.newSingleThreadExecutor()
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        val analisis = ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .build()
+        var proveedor: ProcessCameraProvider? = null
+        var vistaPrevia: Preview? = null
+        var desmontado = false
+
+        analisis.setAnalyzer(executor) { imagen ->
+            val mediaImage = imagen.image
+            if (mediaImage == null) {
+                imagen.close()
+                return@setAnalyzer
+            }
+            val entrada = InputImage.fromMediaImage(mediaImage, imagen.imageInfo.rotationDegrees)
+            recognizer.process(entrada)
+                .addOnSuccessListener { resultado ->
+                    viewModel.onTextoReconocido(resultado.textBlocks.map { bloque -> bloque.text })
+                }
+                .addOnFailureListener { error -> viewModel.onCamaraError(error.message) }
+                // Sin cerrar el ImageProxy, CameraX deja de entregar frames.
+                .addOnCompleteListener { imagen.close() }
+        }
+
+        val futuro = ProcessCameraProvider.getInstance(contexto)
+        futuro.addListener({
+            // La pantalla pudo salir mientras se resolvía el provider: no enlazar nada.
+            if (!desmontado) {
+                try {
+                    proveedor = futuro.get()
+                    val preview = Preview.Builder().build().also { vista ->
+                        vista.setSurfaceProvider(vistaCamara.surfaceProvider)
+                    }
+                    vistaPrevia = preview
+                    proveedor?.bindToLifecycle(
+                        cicloVida,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        preview,
+                        analisis
+                    )
+                    viewModel.onPermisoConcedido()
+                } catch (e: Exception) {
+                    viewModel.onCamaraError(e.message)
+                }
+            }
+        }, ContextCompat.getMainExecutor(contexto))
+
+        onDispose {
+            desmontado = true
+            analisis.clearAnalyzer()
+            recognizer.close()
+            executor.shutdownNow()
+            vistaPrevia?.let { proveedor?.unbind(it, analisis) }
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0B1120))) {
+        AndroidView(factory = { vistaCamara }, modifier = Modifier.fillMaxSize())
+        // Velo oscuro para que el texto y la retícula se lean sobre cualquier caja.
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.38f)))
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -147,12 +256,29 @@ fun EscanerScreen(
 
             Spacer(Modifier.height(20.dp))
 
-            ResultadoEscaneo(estado, onUsarTexto, onReintentar = { viewModel.capturar() })
+            ResultadoEscaneo(
+                estado = estado,
+                textoVista = textoDetectado,
+                onUsarTexto = onUsarTexto,
+                onReintentar = {
+                    viewModel.reiniciar()
+                    if (permisoConcedido) {
+                        intento++ // vuelve a enlazar la cámara tras un error
+                    } else {
+                        pedalPermiso.launch(Manifest.permission.CAMERA)
+                    }
+                }
+            )
 
             Spacer(Modifier.weight(1f))
 
             Surface(
-                onClick = { viewModel.capturar() },
+                onClick = {
+                    if (permisoConcedido) viewModel.capturar() else {
+                        pedalPermiso.launch(Manifest.permission.CAMERA)
+                    }
+                },
+                enabled = permisoConcedido && textoDetectado.isNotBlank(),
                 modifier = Modifier.size(76.dp),
                 shape = CircleShape,
                 color = Color.Transparent,
@@ -162,12 +288,15 @@ fun EscanerScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(6.dp)
-                        .background(TealPrimary, CircleShape),
+                        .background(
+                            if (textoDetectado.isNotBlank()) TealPrimary else Color(0xFF334155),
+                            CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.CameraAlt,
-                        contentDescription = "Capturar",
+                        contentDescription = "Confirmar texto detectado",
                         tint = Color.White,
                         modifier = Modifier.size(26.dp)
                     )
@@ -271,6 +400,7 @@ private fun Reticula() {
 @Composable
 private fun ResultadoEscaneo(
     estado: EstadoUi<String>,
+    textoVista: String,
     onUsarTexto: (String) -> Unit,
     onReintentar: () -> Unit
 ) {
@@ -310,12 +440,32 @@ private fun ResultadoEscaneo(
             }
         }
 
-        is EstadoUi.Vacio -> Text(
-            text = "No se detectó texto. Acerca la cámara al nombre de la caja.",
-            fontSize = 12.sp,
-            color = Gris400,
-            textAlign = TextAlign.Center
-        )
+        is EstadoUi.Vacio -> if (textoVista.isBlank()) {
+            Text(
+                text = "No se detectó texto. Acerca la cámara al nombre de la caja.",
+                fontSize = 12.sp,
+                color = Gris400,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("LISTO PARA CONFIRMAR", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Gris400)
+                Text(
+                    text = textoVista,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Toca el obturador para buscar este nombre.",
+                    fontSize = 12.sp,
+                    color = Gris400,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
 
         is EstadoUi.Error -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(

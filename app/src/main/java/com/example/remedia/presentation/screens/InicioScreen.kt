@@ -36,8 +36,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,7 +48,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.remedia.presentation.components.BuscadorBar
 import com.example.remedia.presentation.components.ChipFiltro
 import com.example.remedia.presentation.components.entradaSuave
@@ -67,17 +66,20 @@ private val categorias = listOf("Dolor y fiebre", "Hipertensión", "Antibiótico
 
 /**
  * P1 · Inicio / Buscar (estilo Stitch).
- * Recibe el ViewModel e internamente observa "recientes" con collectAsState().
- * Lo único que guarda localmente es el texto a medio escribir (remember).
+ * Recibe el ViewModel e internamente observa "recientes" con
+ * collectAsStateWithLifecycle(). Lo único que guarda localmente es el texto a
+ * medio escribir (remember).
  */
 @Composable
 fun InicioScreen(
-    viewModel: BusquedaViewModel = viewModel(),
+    viewModel: BusquedaViewModel,
     onBuscar: (String) -> Unit,
     onEscanear: () -> Unit,
     onReintentar: () -> Unit = {}
 ) {
-    val recientes = viewModel.recientes.collectAsState().value
+    val recientes by viewModel.recientes.collectAsStateWithLifecycle()
+    // Copia local: Kotlin no permite smart cast sobre una propiedad delegada (by).
+    val estadoRecientes = recientes
     var texto by remember { mutableStateOf("") }
 
     Scaffold(containerColor = Fondo) { padding ->
@@ -169,14 +171,14 @@ fun InicioScreen(
                 )
             }
 
-            when (recientes) {
+            when (estadoRecientes) {
                 is EstadoUi.Cargando -> item {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = TealPrimary)
                     }
                 }
 
-                is EstadoUi.Exito -> itemsIndexed(recientes.datos) { indice, reciente ->
+                is EstadoUi.Exito -> itemsIndexed(estadoRecientes.datos) { indice, reciente ->
                     TarjetaReciente(
                         nombre = reciente,
                         onClick = { onBuscar(reciente) },
@@ -190,7 +192,7 @@ fun InicioScreen(
 
                 is EstadoUi.Error -> item {
                     Column {
-                        Text(recientes.mensaje, color = TextoSecundario, fontSize = 13.sp)
+                        Text(estadoRecientes.mensaje, color = TextoSecundario, fontSize = 13.sp)
                         TextButton(onClick = onReintentar) {
                             Text("Reintentar", color = TealPrimary)
                         }
