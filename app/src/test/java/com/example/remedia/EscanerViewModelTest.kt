@@ -6,7 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** El OCR se simula con listas de texto: no hace falta cámara ni ML Kit. */
+/** El OCR se simula con listas de texto: no hace falta cÃ¡mara ni ML Kit. */
 class EscanerViewModelTest {
 
     private val viewModel = EscanerViewModel()
@@ -42,6 +42,30 @@ class EscanerViewModelTest {
         viewModel.capturar()
 
         assertEquals(EstadoUi.Vacio, viewModel.estado.value)
+    }
+
+    @Test
+    fun `texto ruidoso con separadores elige el principio activo`() {
+        viewModel.onTextoReconocido(
+            listOf("Ince I Medcanerts I ta re Alvio Del Dolor / Dolor General Aspirina 100mg Tableta")
+        )
+
+        assertEquals("ASPIRINA", viewModel.textoDetectado.value)
+    }
+
+    @Test
+    fun `la dosis y la forma farmaceutica no se incluyen en el nombre`() {
+        viewModel.onTextoReconocido(listOf("ASPIRINA 100 MG TABLETAS"))
+
+        assertEquals("ASPIRINA", viewModel.textoDetectado.value)
+    }
+
+    @Test
+    fun `un frame peor no reemplaza al nombre ya detectado`() {
+        viewModel.onTextoReconocido(listOf("DOLEX AVANZADO"))
+        viewModel.onTextoReconocido(listOf("INVIMA 2024", "VENCE 2027", "LOTE A123"))
+
+        assertEquals("DOLEX AVANZADO", viewModel.textoDetectado.value)
     }
 
     @Test
