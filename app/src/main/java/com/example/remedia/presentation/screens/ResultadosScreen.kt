@@ -1,6 +1,5 @@
 package com.example.remedia.presentation.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -18,13 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,47 +33,45 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.remedia.presentation.components.BotonCircular
+import com.example.remedia.presentation.components.BuscadorBar
 import com.example.remedia.presentation.components.ChipFiltro
 import com.example.remedia.presentation.components.EstadoContenido
 import com.example.remedia.presentation.components.MedicamentoCard
 import com.example.remedia.presentation.viewmodel.BusquedaViewModel
-import com.example.remedia.ui.theme.Borde
 import com.example.remedia.ui.theme.Fondo
-import com.example.remedia.ui.theme.Gris400
-import com.example.remedia.ui.theme.Superficie
-import com.example.remedia.ui.theme.TealPrimary
 import com.example.remedia.ui.theme.TextoPrincipal
 import com.example.remedia.ui.theme.TextoSecundario
 
 private enum class Filtro(val etiqueta: String) {
-    TODOS("Todos"), VENTA_LIBRE("Venta libre"), CON_FORMULA("Con fórmula")
+    TODOS("Todos"), VENTA_LIBRE("Venta libre"), CON_FORMULA("Con fÃ³rmula")
 }
 
-/** Guarda índice y desplazamiento para que volver del Detalle no reinicie el scroll. */
+/** Guarda Ã­ndice y desplazamiento para que volver del Detalle no reinicie el scroll. */
 private val ListaStateSaver = Saver<LazyListState, ArrayList<Int>>(
     save = { arrayListOf(it.firstVisibleItemIndex, it.firstVisibleItemScrollOffset) },
     restore = { LazyListState(it[0], it[1]) }
 )
 
 /**
- * P3 · Resultados (estilo Stitch). Lista con LazyColumn (nunca Column).
- * La búsqueda se lanza con LaunchedEffect(consulta), pero el ViewModel cachea el
- * resultado: al volver del Detalle se restaura el estado sin otra petición.
- * Filtro y scroll sobreviven a la rotación y al back stack (rememberSaveable).
+ * P3 Â· Resultados (estilo Stitch). Lista con LazyColumn (nunca Column).
+ * La bÃºsqueda se lanza con LaunchedEffect(consulta), pero el ViewModel cachea el
+ * resultado: al volver del Detalle se restaura el estado sin otra peticiÃ³n.
+ * Filtro y scroll sobreviven a la rotaciÃ³n y al back stack (rememberSaveable).
  */
 @Composable
 fun ResultadosScreen(
     consulta: String,
     viewModel: BusquedaViewModel,
     onVolver: () -> Unit,
+    onNuevaBusqueda: (String) -> Unit,
     onMedicamentoClick: (String) -> Unit
 ) {
     LaunchedEffect(consulta) { viewModel.buscar(consulta) }
     val estado by viewModel.resultados.collectAsStateWithLifecycle()
+    var textoBusqueda by rememberSaveable { mutableStateOf(consulta) }
     var filtro by rememberSaveable { mutableStateOf(Filtro.TODOS) }
     val listaState = rememberSaveable(saver = ListaStateSaver) { LazyListState(0, 0) }
 
@@ -109,38 +103,19 @@ fun ResultadosScreen(
                         fontWeight = FontWeight.ExtraBold,
                         color = TextoPrincipal
                     )
-                    Text(text = "  •  Resultados", fontSize = 12.sp, color = TextoSecundario)
+                    Text(text = "  â€¢  Resultados", fontSize = 12.sp, color = TextoSecundario)
                 }
 
                 Spacer(Modifier.height(12.dp))
 
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(50),
-                    color = Superficie,
-                    border = BorderStroke(1.dp, Borde)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Search,
-                            contentDescription = null,
-                            tint = Gris400,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = consulta,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextoPrincipal,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+                BuscadorBar(
+                    texto = textoBusqueda,
+                    onTextoChange = { textoBusqueda = it },
+                    onBuscar = {
+                        if (textoBusqueda.isNotBlank()) onNuevaBusqueda(textoBusqueda.trim())
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 Spacer(Modifier.height(12.dp))
 
@@ -160,7 +135,7 @@ fun ResultadosScreen(
 
             EstadoContenido(
                 estado = estado,
-                mensajeVacio = "No encontramos medicamentos con esa búsqueda.",
+                mensajeVacio = "No encontramos medicamentos con esa bÃºsqueda.",
                 onReintentar = { viewModel.buscar(consulta, forzar = true) }
             ) { lista ->
                 val visibles = when (filtro) {
@@ -176,7 +151,7 @@ fun ResultadosScreen(
                 ) {
                     item {
                         Text(
-                            text = "${visibles.size} resultados para “$consulta”",
+                            text = "${visibles.size} resultados para â€œ$consultaâ€",
                             fontSize = 12.sp,
                             color = TextoSecundario
                         )

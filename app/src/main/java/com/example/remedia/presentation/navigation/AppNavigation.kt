@@ -23,13 +23,13 @@ import com.example.remedia.presentation.viewmodel.EscanerViewModel
 import com.example.remedia.presentation.viewmodel.MedicamentosViewModelFactory
 
 /**
- * Grafo de navegación (según el prototipo de Stitch):
- *   Inicio ──buscar──▶ Resultados ──tarjeta──▶ Detalle ──"Ver equivalentes"──▶ Resultados
- *   Inicio ──escanear──▶ Escáner ──texto──▶ Resultados
+ * Grafo de navegaciÃ³n (segÃºn el prototipo de Stitch):
+ *   Inicio â”€â”€buscarâ”€â”€â–¶ Resultados â”€â”€tarjetaâ”€â”€â–¶ Detalle â”€â”€"Ver equivalentes"â”€â”€â–¶ Resultados
+ *   Inicio â”€â”€escanearâ”€â”€â–¶ EscÃ¡ner â”€â”€textoâ”€â”€â–¶ Resultados
  *
  * Repositorio y fuente de recientes (DataStore) se crean una sola vez y se inyectan
- * con una fábrica. BusquedaViewModel se comparte entre Inicio y Resultados
- * (historial persistente y caché de búsquedas); el DetalleViewModel también se
+ * con una fÃ¡brica. BusquedaViewModel se comparte entre Inicio y Resultados
+ * (historial persistente y cachÃ© de bÃºsquedas); el DetalleViewModel tambiÃ©n se
  * comparte para no recargar una ficha ya vista.
  */
 @Composable
@@ -79,6 +79,12 @@ fun AppNavigation(
                 consulta = ruta.consulta,
                 viewModel = busquedaViewModel,
                 onVolver = { navController.popBackStack() },
+                onNuevaBusqueda = { consulta ->
+                    // Reemplaza el resultado anterior para que "atrÃ¡s" vuelva al Inicio.
+                    navController.navigate(Destination.Resultados(consulta)) {
+                        popUpTo<Destination.Inicio>()
+                    }
+                },
                 onMedicamentoClick = { expediente ->
                     navController.navigate(Destination.Detalle(expediente))
                 }
