@@ -115,6 +115,26 @@ class MedicamentosRepositoryImplTest {
         assertEquals("upper(producto) like 'ASPIRINA%'", api.whereBusquedaRecibido)
     }
 
+    @Test
+    fun `filas repetidas se agrupan sin el group de la api`() = runTest {
+        api.buscarHandler = {
+            listOf(
+                dtoDePrueba(expediente = "123", producto = "DOLEX", principioactivo = "ACETAMINOFEN"),
+                dtoDePrueba(expediente = "123", producto = "DOLEX", principioactivo = "CAFEINA"),
+                dtoDePrueba(expediente = "999", producto = "OTRO", principioactivo = "IBUPROFENO")
+            )
+        }
+
+        val resultado = repository.buscar("dolex")
+
+        assertEquals(2, resultado.size)
+        assertEquals("DOLEX", resultado.first().nombre)
+        assertEquals(
+            listOf("ACETAMINOFEN", "CAFEINA"),
+            resultado.first().principiosActivos
+        )
+    }
+
     private inline fun capture(bloque: () -> Unit): Throwable? = try {
         bloque()
         null

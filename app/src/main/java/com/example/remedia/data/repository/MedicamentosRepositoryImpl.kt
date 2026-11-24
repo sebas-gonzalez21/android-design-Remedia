@@ -76,7 +76,7 @@ class MedicamentosRepositoryImpl(
         // El texto venÃ­a del OCR y puede tener ruido. Antes de rendirnos, probamos
         // las palabras candidatas como prefijo del nombre comercial.
         val medicamentos = if (encontrados.isNotEmpty()) {
-            encontrados.map { it.toMedicamentoBasico() }
+            aMedicamentos(encontrados)
         } else {
             buscarPorCandidatos(texto)
         }
@@ -93,7 +93,7 @@ class MedicamentosRepositoryImpl(
     private suspend fun buscarPorCandidatos(texto: String): List<Medicamento> {
         for (candidato in candidatosDeBusqueda(texto).take(MAX_CANDIDATOS)) {
             val where = "upper(producto) like '${candidato.replace("'", "''")}%'"
-            val encontrados = api.buscarPorNombre(where = where).map { it.toMedicamentoBasico() }
+            val encontrados = aMedicamentos(api.buscarPorNombre(where = where))
             if (encontrados.isNotEmpty()) return encontrados
         }
         return emptyList()
@@ -159,6 +159,32 @@ class MedicamentosRepositoryImpl(
 
     private fun String?.esVentaLibre(catalogo: Set<String>): Boolean =
         normalizar(this)?.let { it in catalogo } ?: false
+
+    /**
+     * Sustituye al `$group` de la API (que tarda ~4 s). Dos filas del mismo
+     * expediente/products con distinto principio activo se agrupan en un solo
+     * medicamento, conservando todos sus principios activos.
+     */
+    private fun aMedicamentos(dtos: List<MedicamentoDto>): List<Medicamento> {
+        val agrupados = LinkedHashMap<String, Medicamento>()
+        for (dto in dtos) {
+            val basico = dto.toMedicamentoBasico()
+            val clave = listOf(
+                basico.expediente,
+                normalizar(basico.nombre).orEmpty(),
+                normalizar(basico.formaFarmaceutica).orEmpty()
+            ).joinToString("|")
+            val existente = agrupados[clave]
+            agrupados[clave] = if (existente == null) {
+                basico
+            } else {
+                val activos = (existente.principiosActivos + basico.principiosActivos)
+                    .distinctBy { normalizar(it).orEmpty() }
+                existente.copy(principiosActivos = activos)
+            }
+        }
+        return agrupados.values.toList()
+    }
 
     private fun MedicamentoDto.toMedicamentoBasico(): Medicamento {
         val nombre = producto?.trim().orEmpty().ifBlank { "Medicamento sin nombre" }

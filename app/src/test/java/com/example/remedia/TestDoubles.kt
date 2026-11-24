@@ -90,14 +90,12 @@ internal class FakeMedicamentosApi : MedicamentosApi {
     override suspend fun buscar(
         texto: String,
         select: String,
-        group: String,
         limit: Int
     ): List<MedicamentoDto> = buscarHandler(texto)
 
     override suspend fun buscarPorNombre(
         where: String,
         select: String,
-        group: String,
         limit: Int
     ): List<MedicamentoDto> {
         whereBusquedaRecibido = where

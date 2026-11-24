@@ -15,7 +15,6 @@ interface MedicamentosApi {
     suspend fun buscar(
         @Query("\$q") texto: String,
         @Query("\$select") select: String = SELECT_LISTA,
-        @Query("\$group") group: String = SELECT_LISTA,
         @Query("\$limit") limit: Int = 50
     ): List<MedicamentoDto>
 
@@ -29,7 +28,6 @@ interface MedicamentosApi {
     suspend fun buscarPorNombre(
         @Query("\$where") where: String,
         @Query("\$select") select: String = SELECT_LISTA,
-        @Query("\$group") group: String = SELECT_LISTA,
         @Query("\$limit") limit: Int = 50
     ): List<MedicamentoDto>
 
@@ -60,6 +58,9 @@ interface MedicamentosApi {
          * Campos necesarios para pintar la tarjeta de resultados. `descripcionatc` y
          * `principioactivo` se incluyen para que "Â¿Para quÃ© sirve?" y los principios
          * activos no aparezcan como "No especificado" en la lista.
+         *
+         * No se usa `$group`: en datos.gov.co esa agrupaciÃ³n tarda ~4 s. El
+         * repositorio elimina las filas repetidas en cliente con la misma clave.
          */
         const val SELECT_LISTA =
             "expediente,producto,titular,estadoregistro,formafarmaceutica,descripcionatc,principioactivo"
