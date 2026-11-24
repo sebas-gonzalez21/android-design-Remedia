@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.remedia.data.model.Medicamento
 import com.example.remedia.ui.theme.Borde
-import com.example.remedia.ui.theme.Fondo
 import com.example.remedia.ui.theme.Gris400
 import com.example.remedia.ui.theme.RojoBanner
 import com.example.remedia.ui.theme.RojoBordeBanner
@@ -87,17 +86,17 @@ fun MedicamentoCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = medicamento.laboratorio,
-                    modifier = Modifier.weight(1f),
-                    fontSize = 12.sp,
-                    color = TextoSecundario
+                LaboratorioBadge(
+                    nombre = medicamento.laboratorio,
+                    modifier = Modifier.weight(1f)
                 )
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text = medicamento.registroInvima,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = Gris400
+                    color = Gris400,
+                    maxLines = 1
                 )
             }
 
@@ -105,8 +104,8 @@ fun MedicamentoCard(
 
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Fondo,
-                border = BorderStroke(1.dp, SuperficieGris)
+                color = SuperficieGris,
+                border = BorderStroke(1.dp, Borde)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -119,12 +118,20 @@ fun MedicamentoCard(
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = medicamento.formaFarmaceutica,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = TextoSecundario
-                    )
+                    Column {
+                        Text(
+                            text = "FORMA FARMACÃ‰UTICA",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Gris400
+                        )
+                        Text(
+                            text = medicamento.formaFarmaceutica,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = TextoSecundario
+                        )
+                    }
                 }
             }
 
@@ -148,7 +155,7 @@ fun MedicamentoCard(
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = "Registro sanitario ${medicamento.registroInvima} vencido. " +
-                                    "Consulte con su médico alternativas vigentes.",
+                                    "Consulte con su mÃ©dico alternativas vigentes.",
                             fontSize = 11.sp,
                             lineHeight = 16.sp,
                             color = RojoTexto
