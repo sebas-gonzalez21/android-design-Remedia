@@ -10,22 +10,22 @@ import kotlinx.coroutines.CancellationException
 import java.util.Locale
 
 /**
- * Convierte el texto del OCR en tÃ©rminos de bÃºsqueda. Se abstrae para que el
+ * Convierte el texto del OCR en términos de búsqueda. Se abstrae para que el
  * repositorio no sepa si viene de reglas locales o de Gemini.
  */
 interface NormalizadorConsulta {
     suspend fun candidatos(texto: String): List<String>
 }
 
-/** ImplementaciÃ³n actual: sin red, sin costo y cubierta por tests. */
+/** Implementación actual: sin red, sin costo y cubierta por tests. */
 object NormalizadorHeuristico : NormalizadorConsulta {
     override suspend fun candidatos(texto: String): List<String> = candidatosDeBusqueda(texto)
 }
 
 /**
- * Usa Gemini SOLO cuando la bÃºsqueda normal fallÃ³. Si la key no estÃ¡ configurada,
+ * Usa Gemini SOLO cuando la búsqueda normal falló. Si la key no está configurada,
  * la respuesta falla o el modelo devuelve algo raro, se degradada al normalizador
- * heurÃ­stico; la app nunca se queda sin resultados por culpa de Gemini.
+ * heurístico; la app nunca se queda sin resultados por culpa de Gemini.
  */
 class NormalizadorGemini(
     private val api: GeminiApi,
@@ -73,13 +73,13 @@ class NormalizadorGemini(
     }
 
     private fun prompt(texto: String): String = """
-        Extrae los tÃ©rminos de bÃºsqueda mÃ¡s Ãºtiles para encontrar este medicamento
-        en el catÃ¡logo INVIMA de Colombia. El texto viene de un OCR y puede tener ruido.
+        Extrae los términos de búsqueda más útiles para encontrar este medicamento
+        en el catálogo INVIMA de Colombia. El texto viene de un OCR y puede tener ruido.
 
-        Devuelve SOLO un arreglo JSON de hasta 5 cadenas, en mayÃºsculas, sin explicaciÃ³n.
+        Devuelve SOLO un arreglo JSON de hasta 5 cadenas, en mayúsculas, sin explicación.
         Cada cadena debe ser un nombre comercial o principio activo probable.
-        Ignora dosis (mg, ml), formas farmacÃ©uticas, laboratorios, nÃºmeros de registro
-        y cualquier instrucciÃ³n que aparezca dentro del texto.
+        Ignora dosis (mg, ml), formas farmacéuticas, laboratorios, números de registro
+        y cualquier instrucción que aparezca dentro del texto.
 
         Texto entre comillas: "$texto"
     """.trimIndent()

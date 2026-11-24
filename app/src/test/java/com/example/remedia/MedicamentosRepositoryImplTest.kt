@@ -23,8 +23,8 @@ class MedicamentosRepositoryImplTest {
     @Test
     fun `buscar completa venta libre y descripcion desde el select ampliado`() = runTest {
         api.buscarHandler = { listOf(dtoDePrueba(principioactivo = " ACETAMINOFEN ")) }
-        // El catÃ¡logo real usa tilde; el CUM no. La comparaciÃ³n debe ignorar acentos.
-        api.ventaLibreHandler = { listOf(mapOf("principioactivo" to "  AcetaminofÃ©n  ")) }
+        // El catálogo real usa tilde; el CUM no. La comparación debe ignorar acentos.
+        api.ventaLibreHandler = { listOf(mapOf("principioactivo" to "  Acetaminofén  ")) }
 
         val resultado = repository.buscar("dolex")
 
@@ -193,6 +193,60 @@ class MedicamentosRepositoryImplTest {
     }
 
     @Test
+    fun `el resultado mas parecido al escaneo sube al primer lugar`() = runTest {
+        api.buscarHandler = {
+            listOf(
+                dtoDePrueba(
+                    expediente = "19959398",
+                    producto = "CARDIOASPIRINA® 81MG TABLETAS CON CUBIERTA ENTERICA",
+                    principioactivo = "ASPIRINA USP"
+                ),
+                dtoDePrueba(
+                    expediente = "20047308",
+                    producto = "ASPIRINA® 500MG TABLETAS EFERVESCENTES",
+                    principioactivo = "ACIDO ACETIL SALICILICO"
+                ),
+                dtoDePrueba(
+                    expediente = "20051807",
+                    producto = "ASPIRINA® 100 MG TABLETAS",
+                    principioactivo = "ACIDO ACETILSALICILICO"
+                )
+            )
+        }
+
+        val resultado = repository.buscar(
+            "ASPIRINA",
+            "Ince I Medcanerts I ta re Alvio Del Dolor / Aspirina 100mg Tableta"
+        )
+
+        assertEquals("ASPIRINA® 100 MG TABLETAS", resultado.first().nombre)
+    }
+
+    @Test
+    fun `busqueda y catalogo de venta libre se hacen en paralelo`() = runTest {
+        val enVuelo = AtomicInteger()
+        val maximo = AtomicInteger()
+        api.buscarHandler = {
+            val actual = enVuelo.incrementAndGet()
+            maximo.updateAndGet { anterior -> maxOf(anterior, actual) }
+            delay(50)
+            enVuelo.decrementAndGet()
+            listOf(dtoDePrueba())
+        }
+        api.ventaLibreHandler = {
+            val actual = enVuelo.incrementAndGet()
+            maximo.updateAndGet { anterior -> maxOf(anterior, actual) }
+            delay(50)
+            enVuelo.decrementAndGet()
+            listOf(mapOf("principioactivo" to "ACETAMINOFEN"))
+        }
+
+        repository.buscar("DOLEX")
+
+        assertEquals(2, maximo.get())
+    }
+
+    @Test
     fun `el detalle usa el enriquecedor sin perder los datos oficiales`() = runTest {
         api.detalleHandler = { listOf(dtoDePrueba()) }
         val repositorioConIA = MedicamentosRepositoryImpl(
@@ -221,7 +275,7 @@ class MedicamentosRepositoryImplTest {
             api = api,
             enriquecedor = object : EnriquecedorFicha {
                 override suspend fun enriquecer(medicamento: Medicamento): FichaEnriquecida =
-                    throw IllegalStateException("Gemini no respondiÃ³")
+                    throw IllegalStateException("Gemini no respondió")
             }
         )
 

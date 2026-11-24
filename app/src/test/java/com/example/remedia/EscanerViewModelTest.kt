@@ -7,7 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** El OCR se simula con listas de texto: no hace falta cÃ¡mara ni ML Kit. */
+/** El OCR se simula con listas de texto: no hace falta cámara ni ML Kit. */
 class EscanerViewModelTest {
 
     private val viewModel = EscanerViewModel()
@@ -24,7 +24,7 @@ class EscanerViewModelTest {
 
         val exito = viewModel.estado.value as EstadoUi.Exito<TextoEscaneado>
         assertEquals("DOLEX AVANZADO", exito.datos.consulta)
-        // El OCR completo siempre viaja para que Gemini pueda refinar la bÃºsqueda.
+        // El OCR completo siempre viaja para que Gemini pueda refinar la búsqueda.
         assertTrue(exito.datos.contexto.contains("INVIMA"))
     }
 

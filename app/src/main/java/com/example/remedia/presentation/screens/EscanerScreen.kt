@@ -82,13 +82,13 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * P2 Â· EscÃ¡ner (estilo Stitch) con cÃ¡mara real.
+ * P2 · Escáner (estilo Stitch) con cámara real.
  *
  * CameraX entrega el preview y frames al analizador; ML Kit lee el texto y el
- * ViewModel elige la mejor lÃ­nea. El obturador confirma el texto leÃ­do y
+ * ViewModel elige la mejor línea. El obturador confirma el texto leído y
  * "Buscar este medicamento" navega a Resultados con esa consulta.
  *
- * La cÃ¡mara se enlaza al ciclo de vida de la pantalla y se libera al salir:
+ * La cámara se enlaza al ciclo de vida de la pantalla y se libera al salir:
  * analizador, recognizer, executor y use cases. El permiso se pide al entrar
  * y se puede volver a pedir desde "Reintentar".
  */
@@ -162,7 +162,7 @@ fun EscanerScreen(
 
         val futuro = ProcessCameraProvider.getInstance(contexto)
         futuro.addListener({
-            // La pantalla pudo salir mientras se resolvÃ­a el provider: no enlazar nada.
+            // La pantalla pudo salir mientras se resolvía el provider: no enlazar nada.
             if (!desmontado) {
                 try {
                     proveedor = futuro.get()
@@ -178,7 +178,7 @@ fun EscanerScreen(
                     )
                     controlCamara = camara?.cameraControl
 
-                    // Toque para enfocar: el nombre suele estar en una zona pequeÃ±a
+                    // Toque para enfocar: el nombre suele estar en una zona pequeña
                     // de la caja y el autoenfoque de escena no siempre la elige.
                     vistaCamara.setOnTouchListener { _, evento ->
                         if (evento.action != MotionEvent.ACTION_DOWN) {
@@ -215,7 +215,7 @@ fun EscanerScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0B1120))) {
         AndroidView(factory = { vistaCamara }, modifier = Modifier.fillMaxSize())
-        // Velo oscuro para que el texto y la retÃ­cula se lean sobre cualquier caja.
+        // Velo oscuro para que el texto y la retícula se lean sobre cualquier caja.
         Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.38f)))
 
         Column(
@@ -254,7 +254,7 @@ fun EscanerScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "INVIMA VISIÃ“N",
+                        text = "INVIMA VISIÓN",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -295,7 +295,7 @@ fun EscanerScreen(
                 onReintentar = {
                     viewModel.reiniciar()
                     if (permisoConcedido) {
-                        intento++ // vuelve a enlazar la cÃ¡mara tras un error
+                        intento++ // vuelve a enlazar la cámara tras un error
                     } else {
                         pedalPermiso.launch(Manifest.permission.CAMERA)
                     }
@@ -375,7 +375,7 @@ fun EscanerScreen(
                 text = {
                     Column {
                         Text(
-                            text = "Si el OCR leyÃ³ mal la caja, escribe aquÃ­ el nombre correcto.",
+                            text = "Si el OCR leyó mal la caja, escribe aquí el nombre correcto.",
                             fontSize = 12.sp,
                             color = TextoSecundario
                         )
@@ -424,7 +424,7 @@ private fun Pastilla(contenido: @Composable () -> Unit) {
     }
 }
 
-/** Marco de encuadre con esquinas teal/blancas y una lÃ­nea lÃ¡ser que sube y baja. */
+/** Marco de encuadre con esquinas teal/blancas y una línea láser que sube y baja. */
 @Composable
 private fun Reticula() {
     val transicion = rememberInfiniteTransition(label = "laser")
@@ -485,7 +485,7 @@ private fun ResultadoEscaneo(
                 strokeWidth = 2.dp
             )
             Spacer(Modifier.width(8.dp))
-            Text("Leyendo el textoâ€¦", fontSize = 12.sp, color = Color.White)
+            Text("Leyendo el texto…", fontSize = 12.sp, color = Color.White)
         }
 
         is EstadoUi.Exito -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -515,7 +515,7 @@ private fun ResultadoEscaneo(
 
         is EstadoUi.Vacio -> if (textoVista.isBlank()) {
             Text(
-                text = "No se detectÃ³ texto. Acerca la cÃ¡mara al nombre de la caja.",
+                text = "No se detectó texto. Acerca la cámara al nombre de la caja.",
                 fontSize = 12.sp,
                 color = Gris400,
                 textAlign = TextAlign.Center

@@ -1,8 +1,8 @@
 package com.example.remedia.data.dto
 
 /**
- * DTO mÃ­nimos de la API de Gemini (generateContent). Solo pedimos texto: no
- * usamos funciones ni modo multimodal, asÃ­ el contrato se mantiene pequeÃ±o.
+ * DTO mínimos de la API de Gemini (generateContent). Solo pedimos texto: no
+ * usamos funciones ni modo multimodal, así el contrato se mantiene pequeño.
  */
 
 data class GeminiRequest(

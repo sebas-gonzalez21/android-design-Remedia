@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** La insignia de farmacÃ©utica debe ser estable y distinguir laboratorios. */
+/** La insignia de farmacéutica debe ser estable y distinguir laboratorios. */
 class LaboratorioBadgeTest {
 
     @Test
@@ -24,7 +24,7 @@ class LaboratorioBadgeTest {
         )
         val indices = nombres.map(::indiceColorLaboratorio).toSet()
 
-        assertTrue("Se esperaba mÃ¡s de un color, se obtuvo $indices", indices.size > 1)
+        assertTrue("Se esperaba más de un color, se obtuvo $indices", indices.size > 1)
     }
 
     @Test

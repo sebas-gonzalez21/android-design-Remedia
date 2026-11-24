@@ -46,20 +46,20 @@ import com.example.remedia.ui.theme.TextoPrincipal
 import com.example.remedia.ui.theme.TextoSecundario
 
 private enum class Filtro(val etiqueta: String) {
-    TODOS("Todos"), VENTA_LIBRE("Venta libre"), CON_FORMULA("Con fÃ³rmula")
+    TODOS("Todos"), VENTA_LIBRE("Venta libre"), CON_FORMULA("Con fórmula")
 }
 
-/** Guarda Ã­ndice y desplazamiento para que volver del Detalle no reinicie el scroll. */
+/** Guarda índice y desplazamiento para que volver del Detalle no reinicie el scroll. */
 private val ListaStateSaver = Saver<LazyListState, ArrayList<Int>>(
     save = { arrayListOf(it.firstVisibleItemIndex, it.firstVisibleItemScrollOffset) },
     restore = { LazyListState(it[0], it[1]) }
 )
 
 /**
- * P3 Â· Resultados (estilo Stitch). Lista con LazyColumn (nunca Column).
- * La bÃºsqueda se lanza con LaunchedEffect(consulta), pero el ViewModel cachea el
- * resultado: al volver del Detalle se restaura el estado sin otra peticiÃ³n.
- * Filtro y scroll sobreviven a la rotaciÃ³n y al back stack (rememberSaveable).
+ * P3 · Resultados (estilo Stitch). Lista con LazyColumn (nunca Column).
+ * La búsqueda se lanza con LaunchedEffect(consulta), pero el ViewModel cachea el
+ * resultado: al volver del Detalle se restaura el estado sin otra petición.
+ * Filtro y scroll sobreviven a la rotación y al back stack (rememberSaveable).
  */
 @Composable
 fun ResultadosScreen(
@@ -104,7 +104,7 @@ fun ResultadosScreen(
                         fontWeight = FontWeight.ExtraBold,
                         color = TextoPrincipal
                     )
-                    Text(text = "  â€¢  Resultados", fontSize = 12.sp, color = TextoSecundario)
+                    Text(text = "  •  Resultados", fontSize = 12.sp, color = TextoSecundario)
                 }
 
                 Spacer(Modifier.height(12.dp))
@@ -136,7 +136,7 @@ fun ResultadosScreen(
 
             EstadoContenido(
                 estado = estado,
-                mensajeVacio = "No encontramos medicamentos con esa bÃºsqueda.",
+                mensajeVacio = "No encontramos medicamentos con esa búsqueda.",
                 onReintentar = { viewModel.buscar(consulta, contexto, forzar = true) }
             ) { lista ->
                 val visibles = when (filtro) {
@@ -152,7 +152,7 @@ fun ResultadosScreen(
                 ) {
                     item {
                         Text(
-                            text = "${visibles.size} resultados para â€œ$consultaâ€",
+                            text = "${visibles.size} resultados para “$consulta”",
                             fontSize = 12.sp,
                             color = TextoSecundario
                         )

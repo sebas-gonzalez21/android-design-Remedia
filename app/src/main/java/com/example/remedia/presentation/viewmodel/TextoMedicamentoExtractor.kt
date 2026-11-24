@@ -5,22 +5,22 @@ import java.util.Locale
 
 /**
  * Elige, entre todo lo que lee el OCR, el texto que probablemente es el nombre
- * del medicamento. Es lÃ³gica pura (sin Android ni ML Kit) para poder probarla
- * con JUnit local: la cÃ¡mara solo entrega `List<String>` y aquÃ­ se decide quÃ©
- * se muestra y quÃ© se envÃ­a como consulta a la bÃºsqueda.
+ * del medicamento. Es lógica pura (sin Android ni ML Kit) para poder probarla
+ * con JUnit local: la cámara solo entrega `List<String>` y aquí se decide qué
+ * se muestra y qué se envía como consulta a la búsqueda.
  *
- * El OCR de una caja mezcla el nombre con dosis, forma farmacÃ©utica, registros
- * y texto de otras caras de la caja. Por eso no basta con la lÃ­nea mÃ¡s larga:
+ * El OCR de una caja mezcla el nombre con dosis, forma farmacéutica, registros
+ * y texto de otras caras de la caja. Por eso no basta con la línea más larga:
  * se separa por separadores visuales, se descarta el ruido y se premian los
- * terminaciones tÃ­picas de principios activos (`-ina`, `-ol`, `-pril`, ...).
+ * terminaciones típicas de principios activos (`-ina`, `-ol`, `-pril`, ...).
  */
 internal object TextoMedicamentoExtractor {
 
     private data class Candidato(val texto: String, val puntos: Int)
 
     private val SALTOS = Regex("[\\r\\n]+")
-    /** El OCR suele leer `|` como `I` y tambiÃ©n separa con `/` o `Â·`. */
-    private val SEPARADORES = Regex("\\s*(?:[|/Â·â€¢]|\\bI\\b)\\s*", RegexOption.IGNORE_CASE)
+    /** El OCR suele leer `|` como `I` y también separa con `/` o `·`. */
+    private val SEPARADORES = Regex("\\s*(?:[|/·•]|\\bI\\b)\\s*", RegexOption.IGNORE_CASE)
     private val ESPACIOS = Regex("\\s+")
     private val DIACRITICAS = Regex("\\p{M}+")
     private val NO_ALFANUMERICO = Regex("[^A-Z0-9 ]")
@@ -39,7 +39,7 @@ internal object TextoMedicamentoExtractor {
         "ADVERTENCIA", "CONTRAINDICACIONES", "CONSERVAR"
     )
 
-    /** Dosis, forma farmacÃ©utica y conectores que no identifican el producto. */
+    /** Dosis, forma farmacéutica y conectores que no identifican el producto. */
     private val RUIDO = setOf(
         "ALVIO", "DOLOR", "GENERAL", "TABLETA", "TABLETAS", "CAPSULA", "CAPSULAS",
         "COMPRIMIDO", "GRANULADO", "POLVO", "SOLUCION", "INYECTABLE", "GOTAS",
@@ -53,7 +53,7 @@ internal object TextoMedicamentoExtractor {
 
     /**
      * @param anterior texto ya mostrado en el visor. Se conserva si el nuevo
-     * candidato es peor; asÃ­ el nombre no parpadea entre frames del OCR.
+     * candidato es peor; así el nombre no parpadea entre frames del OCR.
      */
     fun extraer(textos: List<String>, anterior: String = ""): String? {
         val mejor = textos.asSequence()
@@ -92,7 +92,7 @@ internal object TextoMedicamentoExtractor {
         } * 10
         val penalizacion =
             (tokens.size - utiles.size) +                       // dosis y conectores
-            normalizado.count { it.isDigit() } +                // nÃºmeros sueltos
+            normalizado.count { it.isDigit() } +                // números sueltos
             CONSONANTES_LARGAS.findAll(nombre).sumOf { it.value.length - 2 } * 3
 
         return Candidato(nombre, (base + bonificacion - penalizacion).coerceAtLeast(1))

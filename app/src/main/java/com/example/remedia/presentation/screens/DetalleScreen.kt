@@ -75,10 +75,10 @@ import com.example.remedia.ui.theme.Vigente
 import com.example.remedia.ui.theme.VigenteFondo
 
 /**
- * P4 Â· Detalle / Ficha tÃ©cnica (estilo Stitch).
+ * P4 · Detalle / Ficha técnica (estilo Stitch).
  * Recibe el ViewModel: lanza la carga con LaunchedEffect(expediente) y observa el
- * resultado con collectAsStateWithLifecycle(). El ViewModel cachea la ficha, asÃ­
- * que revisitarla no repite las peticiones. Solo muestra datos que sÃ­ entrega la API.
+ * resultado con collectAsStateWithLifecycle(). El ViewModel cachea la ficha, así
+ * que revisitarla no repite las peticiones. Solo muestra datos que sí entrega la API.
  */
 @Composable
 fun DetalleScreen(
@@ -94,7 +94,7 @@ fun DetalleScreen(
         containerColor = Fondo,
         bottomBar = {
             // 'estado' es una propiedad delegada (by): Kotlin no permite smart cast sobre ella,
-            // asÃ­ que se copia a una variable local antes de comprobar el tipo.
+            // así que se copia a una variable local antes de comprobar el tipo.
             val estadoActual = estado
             if (estadoActual is EstadoUi.Exito) {
                 val med = estadoActual.datos
@@ -106,7 +106,7 @@ fun DetalleScreen(
     ) { padding ->
         EstadoContenido(
             estado = estado,
-            mensajeVacio = "No se encontrÃ³ este medicamento.",
+            mensajeVacio = "No se encontró este medicamento.",
             onReintentar = { viewModel.cargar(expediente, forzar = true) },
             modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
         ) { med ->
@@ -131,13 +131,13 @@ fun DetalleScreen(
                 item {
                     TarjetaSeccion(
                         icono = Icons.Outlined.Medication,
-                        titulo = "Â¿Para quÃ© sirve?",
+                        titulo = "¿Para qué sirve?",
                         indice = 1,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     ) {
                         if (med.paraQueSirveIA) {
                             Text(
-                                text = "EXPLICACIÃ“N GENERADA CON IA",
+                                text = "EXPLICACIÓN GENERADA CON IA",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TealPrimary
@@ -191,7 +191,7 @@ fun DetalleScreen(
                                 .padding(top = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Forma farmacÃ©utica", fontSize = 12.sp, color = TextoSecundario)
+                            Text("Forma farmacéutica", fontSize = 12.sp, color = TextoSecundario)
                             Text(
                                 text = med.formaFarmaceutica,
                                 fontSize = 12.sp,
@@ -218,7 +218,7 @@ fun DetalleScreen(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    text = "CÃ“DIGO REGISTRO SANITARIO",
+                                    text = "CÓDIGO REGISTRO SANITARIO",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Gris400
@@ -255,7 +255,7 @@ fun DetalleScreen(
                 item {
                     TarjetaSeccion(
                         icono = Icons.Outlined.Payments,
-                        titulo = "Precio mÃ¡ximo legal",
+                        titulo = "Precio máximo legal",
                         indice = 4,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     ) {
@@ -327,7 +327,7 @@ private fun Cabecera(med: Medicamento, onVolver: () -> Unit) {
                 fontWeight = FontWeight.ExtraBold,
                 color = TealPrimary
             )
-            Text(text = "  â€¢  Ficha tÃ©cnica", fontSize = 12.sp, color = TextoSecundario)
+            Text(text = "  •  Ficha técnica", fontSize = 12.sp, color = TextoSecundario)
             Spacer(Modifier.weight(1f))
             BotonCircular(onClick = { }) {
                 Icon(
@@ -354,7 +354,7 @@ private fun Cabecera(med: Medicamento, onVolver: () -> Unit) {
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = "FICHA TÃ‰CNICA OFICIAL",
+                    text = "FICHA TÉCNICA OFICIAL",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = TealPrimary
@@ -411,7 +411,7 @@ private fun Cabecera(med: Medicamento, onVolver: () -> Unit) {
     }
 }
 
-/** Insignia destacada del encabezado: verde con escudo (venta libre) o Ã¡mbar (fÃ³rmula). */
+/** Insignia destacada del encabezado: verde con escudo (venta libre) o ámbar (fórmula). */
 @Composable
 private fun InsigniaVentaLibre(ventaLibre: Boolean) {
     val fondo = if (ventaLibre) VigenteFondo else FormulaFondo
@@ -430,7 +430,7 @@ private fun InsigniaVentaLibre(ventaLibre: Boolean) {
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                text = if (ventaLibre) "Venta libre" else "Requiere fÃ³rmula",
+                text = if (ventaLibre) "Venta libre" else "Requiere fórmula",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = color

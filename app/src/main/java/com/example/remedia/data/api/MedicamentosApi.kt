@@ -19,8 +19,8 @@ interface MedicamentosApi {
     ): List<MedicamentoDto>
 
     /**
-     * BÃºsqueda estricta por el principio del nombre comercial. Se usa como
-     * respaldo cuando el texto del OCR tiene ruido: `$q` hace bÃºsqueda de texto
+     * Búsqueda estricta por el principio del nombre comercial. Se usa como
+     * respaldo cuando el texto del OCR tiene ruido: `$q` hace búsqueda de texto
      * completo y puede devolver cosas raras, mientras que este prefijo obliga a
      * que el producto empiece por la palabra candidata.
      */
@@ -44,8 +44,8 @@ interface MedicamentosApi {
     ): List<PrecioDto>
 
     /**
-     * Descarga una sola vez el catÃ¡logo de venta libre (~1000 filas) para resolver
-     * los filtros de la lista y la insignia del detalle sin una peticiÃ³n por card.
+     * Descarga una sola vez el catálogo de venta libre (~1000 filas) para resolver
+     * los filtros de la lista y la insignia del detalle sin una petición por card.
      */
     @GET("resource/xzwx-qpja.json")
     suspend fun ventaLibrePrincipios(
@@ -56,10 +56,10 @@ interface MedicamentosApi {
     companion object {
         /**
          * Campos necesarios para pintar la tarjeta de resultados. `descripcionatc` y
-         * `principioactivo` se incluyen para que "Â¿Para quÃ© sirve?" y los principios
+         * `principioactivo` se incluyen para que "¿Para qué sirve?" y los principios
          * activos no aparezcan como "No especificado" en la lista.
          *
-         * No se usa `$group`: en datos.gov.co esa agrupaciÃ³n tarda ~4 s. El
+         * No se usa `$group`: en datos.gov.co esa agrupación tarda ~4 s. El
          * repositorio elimina las filas repetidas en cliente con la misma clave.
          */
         const val SELECT_LISTA =

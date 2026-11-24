@@ -120,7 +120,7 @@ fun MedicamentoCard(
                     Spacer(Modifier.width(8.dp))
                     Column {
                         Text(
-                            text = "FORMA FARMACÃ‰UTICA",
+                            text = "FORMA FARMACÉUTICA",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Gris400
@@ -155,7 +155,7 @@ fun MedicamentoCard(
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = "Registro sanitario ${medicamento.registroInvima} vencido. " +
-                                    "Consulte con su mÃ©dico alternativas vigentes.",
+                                    "Consulte con su médico alternativas vigentes.",
                             fontSize = 11.sp,
                             lineHeight = 16.sp,
                             color = RojoTexto

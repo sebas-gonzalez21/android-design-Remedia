@@ -41,8 +41,8 @@ private val PaletaLaboratorio = listOf(
 
 /**
  * Devuelve -1 cuando no hay laboratorio (color neutro). En caso contrario, un
- * Ã­ndice estable de la paleta: el mismo laboratorio siempre tiene el mismo color
- * aunque aparezca en varias tarjetas o en bÃºsquedas distintas.
+ * índice estable de la paleta: el mismo laboratorio siempre tiene el mismo color
+ * aunque aparezca en varias tarjetas o en búsquedas distintas.
  */
 internal fun indiceColorLaboratorio(nombre: String): Int {
     val clave = nombre.trim().uppercase(Locale.ROOT)
@@ -51,7 +51,7 @@ internal fun indiceColorLaboratorio(nombre: String): Int {
     return (hash % PaletaLaboratorio.size).toInt()
 }
 
-/** Insignia "FARMACÃ‰UTICA" con el titular del registro INVIMA. */
+/** Insignia "FARMACÉUTICA" con el titular del registro INVIMA. */
 @Composable
 fun LaboratorioBadge(nombre: String, modifier: Modifier = Modifier) {
     val indice = indiceColorLaboratorio(nombre)
@@ -75,7 +75,7 @@ fun LaboratorioBadge(nombre: String, modifier: Modifier = Modifier) {
             Spacer(Modifier.width(6.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "FARMACÃ‰UTICA",
+                    text = "FARMACÉUTICA",
                     fontSize = 9.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = TealDark,

@@ -12,9 +12,9 @@ object GeminiClient {
     /** True solo cuando el usuario puso una key en local.properties. */
     val habilitado: Boolean get() = BuildConfig.GEMINI_API_KEY.isNotBlank()
 
-    // Sin logging: el interceptor de Retrofit imprimirÃ­a la URL con ?key=...
-    // Timeouts cortos a propÃ³sito: Gemini se usa solo como respaldo y no debe
-    // convertir una bÃºsqueda fallida en una espera larga.
+    // Sin logging: el interceptor de Retrofit imprimiría la URL con ?key=...
+    // Timeouts cortos a propósito: Gemini se usa solo como respaldo y no debe
+    // convertir una búsqueda fallida en una espera larga.
     private val cliente = OkHttpClient.Builder()
         .connectTimeout(3, TimeUnit.SECONDS)
         .readTimeout(12, TimeUnit.SECONDS)

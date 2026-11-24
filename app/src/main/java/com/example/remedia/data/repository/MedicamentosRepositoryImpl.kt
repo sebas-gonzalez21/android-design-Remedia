@@ -5,6 +5,7 @@ import com.example.remedia.data.dto.MedicamentoDto
 import com.example.remedia.data.model.Medicamento
 import com.example.remedia.data.network.RetrofitClient
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
@@ -27,7 +28,7 @@ private val PALABRAS_RUIDO = setOf(
 /** Tope de peticiones de respaldo para no castigar la API con texto ruidoso. */
 private const val MAX_CANDIDATOS = 5
 
-/** Normaliza acentos, mayÃºsculas y espacios; se usa para comparar catÃ¡logos. */
+/** Normaliza acentos, mayúsculas y espacios; se usa para comparar catálogos. */
 internal fun normalizarTexto(texto: String?): String? =
     texto?.trim()
         ?.let { Normalizer.normalize(it, Normalizer.Form.NFD) }
@@ -37,8 +38,8 @@ internal fun normalizarTexto(texto: String?): String? =
         ?.takeIf { it.isNotBlank() }
 
 /**
- * Palabras Ãºtiles de una consulta, ordenadas por tamaÃ±o. El OCR suele entregar
- * frases largas con ruido; las palabras mÃ¡s largas suelen ser el nombre comercial
+ * Palabras útiles de una consulta, ordenadas por tamaño. El OCR suele entregar
+ * frases largas con ruido; las palabras más largas suelen ser el nombre comercial
  * (por ejemplo, "Aspirina" dentro de "... Alvio Del Dolor General Aspirina ...").
  */
 internal fun candidatosDeBusqueda(texto: String): List<String> =
@@ -57,11 +58,11 @@ internal fun candidatosDeBusqueda(texto: String): List<String> =
 /**
  * Puente entre la API (Retrofit) y la Vista. Los ViewModels solo hablan con esto.
  *
- * Dataset i7cb-raxc (CUM Vigentes, INVIMA) para bÃºsqueda y detalle. El precio
- * regulado (nauz-qkjw) y el catÃ¡logo de venta libre (xzwx-qpja) son datos
+ * Dataset i7cb-raxc (CUM Vigentes, INVIMA) para búsqueda y detalle. El precio
+ * regulado (nauz-qkjw) y el catálogo de venta libre (xzwx-qpja) son datos
  * complementarios: si fallan, se muestra "sin dato" pero la pantalla sigue
- * funcionando. Nunca se tragamos una [CancellationException]: la cancelaciÃ³n
- * estructurada debe llegar hasta la corrutina que la originÃ³.
+ * funcionando. Nunca se tragamos una [CancellationException]: la cancelación
+ * estructurada debe llegar hasta la corrutina que la originó.
  */
 class MedicamentosRepositoryImpl(
     private val api: MedicamentosApi = RetrofitClient.api,
@@ -69,39 +70,55 @@ class MedicamentosRepositoryImpl(
     private val enriquecedor: EnriquecedorFicha = EnriquecedorFichaVacio
 ) : MedicamentosRepository {
 
-    /** Una sola carga del catÃ¡logo de venta libre por proceso, sin peticiones N+1. */
+    /** Una sola carga del catálogo de venta libre por proceso, sin peticiones N+1. */
     private val catalogoMutex = Mutex()
     private var principiosVentaLibre: Set<String>? = null
 
-    override suspend fun buscar(texto: String, contexto: String): List<Medicamento> {
-        val consulta = texto.trim()
-        val contextoOCR = contexto.trim()
-            .takeIf { it.isNotBlank() && it != consulta }
+    override suspend fun buscar(texto: String, contexto: String): List<Medicamento> =
+        coroutineScope {
+            val consulta = texto.trim()
+            val contextoOCR = contexto.trim()
+                .takeIf { it.isNotBlank() && it != consulta }
+            val pista = contextoOCR ?: consulta
 
-        // Cuando el escÃ¡ner entrega el OCR completo, probamos primero los tÃ©rminos
-        // limpios. Si el visor eligiÃ³ "INCE" pero la caja decÃ­a "ASPIRINA", Gemini
-        // (o el normalizador heurÃ­stico) puede recuperar el nombre real. En una
-        // bÃºsqueda escrita a mano no hay contexto extra y no se hace este paso.
-        if (contextoOCR != null) {
-            val porContexto = buscarPorCandidatos(normalizador.candidatos(contextoOCR))
-            if (porContexto.isNotEmpty()) return conVentaLibre(porContexto)
-        }
+            // El catálogo de venta libre no depende de la búsqueda: se carga desde
+            // el principio para no sumar su latencia al resultado.
+            val catalogoDiferido = async { catalogoVentaLibre() }
 
-        val encontrados = api.buscar(texto = consulta)
-        // El texto venÃ­a del OCR y puede tener ruido. Antes de rendirnos, probamos
-        // las palabras candidatas como prefijo del nombre comercial.
-        val medicamentos = if (encontrados.isNotEmpty()) {
-            aMedicamentos(encontrados)
-        } else {
-            // Solo aquÃ­ (cuando $q fallÃ³) se permite el costo de Gemini.
-            buscarPorCandidatos(normalizador.candidatos(contextoOCR ?: consulta))
+            // Cuando el escáner entrega el OCR completo, probamos primero los términos
+            // limpios. Si el visor eligió "INCE" pero la caja decía "ASPIRINA", Gemini
+            // (o el normalizador heurístico) puede recuperar el nombre real. En una
+            // búsqueda escrita a mano no hay contexto extra y no se hace este paso.
+            if (contextoOCR != null) {
+                val porContexto = buscarPorCandidatos(
+                    normalizador.candidatos(contextoOCR),
+                    pista
+                )
+                if (porContexto.isNotEmpty()) {
+                    return@coroutineScope conVentaLibre(porContexto, catalogoDiferido)
+                }
+            }
+
+            val encontrados = api.buscar(texto = consulta)
+            // El texto venía del OCR y puede tener ruido. Antes de rendirnos, probamos
+            // las palabras candidatas como prefijo del nombre comercial.
+            val medicamentos = if (encontrados.isNotEmpty()) {
+                // La API no ordena por parecido: sin esto, "ASPIRINA 100 MG" aparece
+                // detrás de "CARDIOASPIRINA 81MG" y "ASPIRINA 500MG".
+                SimilitudMedicamento.ordenar(aMedicamentos(encontrados), pista, consulta)
+            } else {
+                // Solo aquí (cuando $q falló) se permite el costo de Gemini.
+                buscarPorCandidatos(normalizador.candidatos(pista), pista)
+            }
+            conVentaLibre(medicamentos, catalogoDiferido)
         }
-        return conVentaLibre(medicamentos)
-    }
 
     /** Completa la insignia de venta libre sin lanzar peticiones por tarjeta. */
-    private suspend fun conVentaLibre(medicamentos: List<Medicamento>): List<Medicamento> {
-        val catalogo = catalogoVentaLibre() ?: return medicamentos
+    private suspend fun conVentaLibre(
+        medicamentos: List<Medicamento>,
+        catalogoDiferido: Deferred<Set<String>?>
+    ): List<Medicamento> {
+        val catalogo = catalogoDiferido.await() ?: return medicamentos
         return medicamentos.map { medicamento ->
             medicamento.copy(
                 ventaLibre = medicamento.principiosActivos.firstOrNull().esVentaLibre(catalogo)
@@ -109,29 +126,37 @@ class MedicamentosRepositoryImpl(
         }
     }
 
-    /** Prueba `upper(producto) like 'PALABRA%'` hasta encontrar resultados. */
-    private suspend fun buscarPorCandidatos(candidatos: List<String>): List<Medicamento> {
+    /**
+     * Prueba `upper(producto) like 'PALABRA%'` hasta encontrar resultados y
+     * devuelve esos resultados ordenados por parecido con el texto escaneado.
+     */
+    private suspend fun buscarPorCandidatos(
+        candidatos: List<String>,
+        pista: String
+    ): List<Medicamento> {
         for (candidato in candidatos.take(MAX_CANDIDATOS)) {
             val where = "upper(producto) like '${candidato.replace("'", "''")}%'"
             val encontrados = aMedicamentos(api.buscarPorNombre(where = where))
-            if (encontrados.isNotEmpty()) return encontrados
+            if (encontrados.isNotEmpty()) {
+                return SimilitudMedicamento.ordenar(encontrados, pista, candidato)
+            }
         }
         return emptyList()
     }
 
     override suspend fun cargarDetalle(expediente: String): Medicamento? {
         val id = expediente.trim()
-        require(id.isNotEmpty() && id.all { it.isDigit() }) { "Expediente no vÃ¡lido: $expediente" }
+        require(id.isNotEmpty() && id.all { it.isDigit() }) { "Expediente no válido: $expediente" }
 
         val base = api.detalle(id).firstOrNull()?.toMedicamentoBasico() ?: return null
 
         return coroutineScope {
-            // El detalle va primero (de Ã©l salen el expediente y el principio activo),
+            // El detalle va primero (de él salen el expediente y el principio activo),
             // pero precio, venta libre y enriquecimiento son independientes: en paralelo.
             val precioDiferido = async { precioMaximo(id) }
             val ventaLibreDiferido = async { esVentaLibre(base.principiosActivos.firstOrNull()) }
-            // Se atrapa aquÃ­, dentro de la corrutina hija: si se dejara escapar,
-            // la excepciÃ³n llegarÃ­a al scope y tumbarÃ­a tambiÃ©n precio/venta libre.
+            // Se atrapa aquí, dentro de la corrutina hija: si se dejara escapar,
+            // la excepción llegaría al scope y tumbaría también precio/venta libre.
             val fichaDiferida = async {
                 try {
                     enriquecedor.enriquecer(base)
@@ -155,8 +180,8 @@ class MedicamentosRepositoryImpl(
     }
 
     private suspend fun precioMaximo(expediente: String): String? = try {
-        // El expediente ya estÃ¡ validado como numÃ©rico; duplicar la comilla es defensa
-        // en profundidad por si algÃºn dÃ­a cambia el formato del dataset.
+        // El expediente ya está validado como numérico; duplicar la comilla es defensa
+        // en profundidad por si algún día cambia el formato del dataset.
         val where = "starts_with(cum, '${expediente.replace("'", "''")}-')"
         api.precio(where = where)
             .firstOrNull()?.precioMaximo
@@ -164,7 +189,7 @@ class MedicamentosRepositoryImpl(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        null // Sin precio es un resultado vÃ¡lido, no un error.
+        null // Sin precio es un resultado válido, no un error.
     }
 
     private suspend fun esVentaLibre(principioActivo: String?): Boolean {
@@ -173,7 +198,7 @@ class MedicamentosRepositoryImpl(
         return principio in catalogo
     }
 
-    /** Devuelve null solo si el catÃ¡logo opcional no se pudo cargar. */
+    /** Devuelve null solo si el catálogo opcional no se pudo cargar. */
     private suspend fun catalogoVentaLibre(): Set<String>? = try {
         catalogoMutex.withLock {
             principiosVentaLibre ?: api.ventaLibrePrincipios()
@@ -189,7 +214,7 @@ class MedicamentosRepositoryImpl(
 
     /**
      * Los dos datasets difieren en tildes y espacios: "ACETAMINOFEN" (CUM) frente
-     * a "AcetaminofÃ©n" (venta libre). Normalizamos acentos, mayÃºsculas y espacios.
+     * a "Acetaminofén" (venta libre). Normalizamos acentos, mayúsculas y espacios.
      */
     private fun normalizar(texto: String?): String? = normalizarTexto(texto)
 
@@ -230,7 +255,7 @@ class MedicamentosRepositoryImpl(
             laboratorio = titular?.trim().orEmpty().ifBlank { "No especificado" },
             formaFarmaceutica = formafarmaceutica?.trim().orEmpty().ifBlank { "No especificado" },
             vigente = estadoregistro?.trim().equals("Vigente", ignoreCase = true),
-            // Se completa en buscar()/cargarDetalle() con el catÃ¡logo de venta libre.
+            // Se completa en buscar()/cargarDetalle() con el catálogo de venta libre.
             ventaLibre = false,
             paraQueSirve = descripcionatc?.trim().orEmpty().ifBlank { "No especificado" },
             principiosActivos = principioactivo?.let { listOf(it) } ?: emptyList(),

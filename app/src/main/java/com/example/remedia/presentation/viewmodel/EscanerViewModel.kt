@@ -6,12 +6,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Estado del escÃ¡ner, separado de CameraX y de ML Kit.
+ * Estado del escáner, separado de CameraX y de ML Kit.
  *
- * El analizador de imÃ¡genes solo entrega texto; este ViewModel decide cuÃ¡l lÃ­nea
+ * El analizador de imágenes solo entrega texto; este ViewModel decide cuál línea
  * es el nombre del medicamento, guarda el OCR completo como contexto y permite
- * al usuario corregir el texto antes de buscar. AsÃ­ la lÃ³gica se prueba sin
- * cÃ¡mara y la pantalla no acumula estado propio.
+ * al usuario corregir el texto antes de buscar. Así la lógica se prueba sin
+ * cámara y la pantalla no acumula estado propio.
  */
 class EscanerViewModel : ViewModel() {
 
@@ -21,13 +21,13 @@ class EscanerViewModel : ViewModel() {
     private val _estado = MutableStateFlow<EstadoUi<TextoEscaneado>>(EstadoUi.Vacio)
     val estado: StateFlow<EstadoUi<TextoEscaneado>> = _estado.asStateFlow()
 
-    /** Ãšltimas lÃ­neas Ãºtiles del OCR, sin recortar: sirven como contexto de respaldo. */
+    /** Últimas líneas útiles del OCR, sin recortar: sirven como contexto de respaldo. */
     private val lineasCrudas = ArrayDeque<String>()
 
     /**
-     * El OCR va entregando resultados; guardamos el mejor sin confirmarlo todavÃ­a.
+     * El OCR va entregando resultados; guardamos el mejor sin confirmarlo todavía.
      * Se conserva el texto anterior cuando el nuevo candidato es peor: evita que
-     * el nombre mostrado parpadee mientras la cÃ¡mara se enfoca.
+     * el nombre mostrado parpadee mientras la cámara se enfoca.
      */
     fun onTextoReconocido(textos: List<String>) {
         val utiles = textos.map { it.trim() }.filter { it.isNotBlank() }
@@ -40,7 +40,7 @@ class EscanerViewModel : ViewModel() {
         if (candidato != null && candidato != _textoDetectado.value) _textoDetectado.value = candidato
     }
 
-    /** El usuario corrige el nombre leÃ­do antes de confirmar. */
+    /** El usuario corrige el nombre leído antes de confirmar. */
     fun actualizarTexto(texto: String) {
         val limpio = texto.trim()
         if (limpio.isNotBlank()) _textoDetectado.value = limpio
@@ -71,7 +71,7 @@ class EscanerViewModel : ViewModel() {
     fun onPermisoDenegado() {
         if (_estado.value !is EstadoUi.Exito) {
             _estado.value = EstadoUi.Error(
-                "Necesitamos permiso de cÃ¡mara para leer el nombre. ActÃ­valo en Ajustes o toca Reintentar."
+                "Necesitamos permiso de cámara para leer el nombre. Actívalo en Ajustes o toca Reintentar."
             )
         }
     }
@@ -79,7 +79,7 @@ class EscanerViewModel : ViewModel() {
     fun onCamaraError(causa: String?) {
         val detalle = causa?.trim()?.takeUnless { it.isBlank() }?.let { " ($it)" }.orEmpty()
         _estado.value = EstadoUi.Error(
-            "No se pudo abrir la cÃ¡mara.$detalle Cierra otra app que la estÃ© usando e intÃ©ntalo de nuevo."
+            "No se pudo abrir la cámara.$detalle Cierra otra app que la esté usando e inténtalo de nuevo."
         )
     }
 

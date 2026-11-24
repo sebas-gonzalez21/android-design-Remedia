@@ -91,7 +91,7 @@ fun ImagenProducto(imagenes: List<String>, nombre: String) {
                     strokeWidth = 2.dp
                 )
                 Spacer(Modifier.height(8.dp))
-                Text("Buscando la imagenâ€¦", fontSize = 12.sp, color = TextoSecundario)
+                Text("Buscando la imagen…", fontSize = 12.sp, color = TextoSecundario)
             }
 
             else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
