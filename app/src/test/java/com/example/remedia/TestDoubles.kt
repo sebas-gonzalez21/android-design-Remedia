@@ -1,5 +1,11 @@
 package com.example.remedia
 
+import com.example.remedia.data.api.GeminiApi
+import com.example.remedia.data.dto.GeminiCandidato
+import com.example.remedia.data.dto.GeminiContenido
+import com.example.remedia.data.dto.GeminiParte
+import com.example.remedia.data.dto.GeminiRequest
+import com.example.remedia.data.dto.GeminiRespuesta
 import com.example.remedia.data.dto.MedicamentoDto
 import com.example.remedia.data.dto.PrecioDto
 import com.example.remedia.data.local.RecientesDataSource
@@ -72,6 +78,36 @@ internal class FakeRecientesDataSource : RecientesDataSource {
     override suspend fun guardar(recientes: List<String>) {
         guardados = recientes
         estado.value = recientes
+    }
+}
+
+internal class FakeGeminiApi : GeminiApi {
+    var respuesta: GeminiRespuesta = GeminiRespuesta()
+    var ultimoModelo: String? = null
+    var ultimaClave: String? = null
+    var ultimaPeticion: GeminiRequest? = null
+    var llamadas = 0
+
+    override suspend fun generar(
+        modelo: String,
+        clave: String,
+        cuerpo: GeminiRequest
+    ): GeminiRespuesta {
+        llamadas++
+        ultimoModelo = modelo
+        ultimaClave = clave
+        ultimaPeticion = cuerpo
+        return respuesta
+    }
+
+    fun responder(texto: String) {
+        respuesta = GeminiRespuesta(
+            candidates = listOf(
+                GeminiCandidato(
+                    content = GeminiContenido(parts = listOf(GeminiParte(texto)))
+                )
+            )
+        )
     }
 }
 

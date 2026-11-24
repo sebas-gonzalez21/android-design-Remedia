@@ -5,6 +5,12 @@ val localProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+/** Escapa comillas y barras para inyectar secretos en BuildConfig sin romper el Kotlin generado. */
+fun String.paraBuildConfig(): String = replace("\\", "\\\\").replace("\"", "\\\"")
+
+fun propiedad(nombre: String, defecto: String = ""): String =
+    localProps.getProperty(nombre, defecto).paraBuildConfig()
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -26,8 +32,22 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "SOCRATA_KEY_ID", "\"${localProps.getProperty("SOCRATA_KEY_ID", "")}\"")
-        buildConfigField("String", "SOCRATA_KEY_SECRET", "\"${localProps.getProperty("SOCRATA_KEY_SECRET", "")}\"")
+        buildConfigField("String", "SOCRATA_KEY_ID", "\"${propiedad("SOCRATA_KEY_ID")}\"")
+        buildConfigField("String", "SOCRATA_KEY_SECRET", "\"${propiedad("SOCRATA_KEY_SECRET")}\"")
+
+        // Gemini es OPCIONAL: sin GEMINI_API_KEY la app usa solo el normalizador
+        // heurÃ­stico y no hace ninguna peticiÃ³n extra.
+        buildConfigField("String", "GEMINI_API_KEY", "\"${propiedad("GEMINI_API_KEY")}\"")
+        buildConfigField(
+            "String",
+            "GEMINI_MODEL",
+            "\"${propiedad("GEMINI_MODEL", "gemini-2.0-flash")}\""
+        )
+        buildConfigField(
+            "String",
+            "GEMINI_BASE_URL",
+            "\"${propiedad("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/")}\""
+        )
     }
 
     buildTypes {

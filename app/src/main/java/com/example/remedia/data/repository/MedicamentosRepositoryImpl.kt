@@ -64,7 +64,8 @@ internal fun candidatosDeBusqueda(texto: String): List<String> =
  * estructurada debe llegar hasta la corrutina que la originÃ³.
  */
 class MedicamentosRepositoryImpl(
-    private val api: MedicamentosApi = RetrofitClient.api
+    private val api: MedicamentosApi = RetrofitClient.api,
+    private val normalizador: NormalizadorConsulta = NormalizadorHeuristico
 ) : MedicamentosRepository {
 
     /** Una sola carga del catÃ¡logo de venta libre por proceso, sin peticiones N+1. */
@@ -78,7 +79,8 @@ class MedicamentosRepositoryImpl(
         val medicamentos = if (encontrados.isNotEmpty()) {
             aMedicamentos(encontrados)
         } else {
-            buscarPorCandidatos(texto)
+            // Solo aquÃ­ (cuando $q fallÃ³) se permite el costo de Gemini.
+            buscarPorCandidatos(normalizador.candidatos(texto))
         }
         val catalogo = catalogoVentaLibre() ?: return medicamentos
 
@@ -90,8 +92,8 @@ class MedicamentosRepositoryImpl(
     }
 
     /** Prueba `upper(producto) like 'PALABRA%'` hasta encontrar resultados. */
-    private suspend fun buscarPorCandidatos(texto: String): List<Medicamento> {
-        for (candidato in candidatosDeBusqueda(texto).take(MAX_CANDIDATOS)) {
+    private suspend fun buscarPorCandidatos(candidatos: List<String>): List<Medicamento> {
+        for (candidato in candidatos.take(MAX_CANDIDATOS)) {
             val where = "upper(producto) like '${candidato.replace("'", "''")}%'"
             val encontrados = aMedicamentos(api.buscarPorNombre(where = where))
             if (encontrados.isNotEmpty()) return encontrados

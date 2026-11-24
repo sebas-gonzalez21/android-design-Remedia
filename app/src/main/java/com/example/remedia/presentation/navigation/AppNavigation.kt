@@ -9,10 +9,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.remedia.BuildConfig
 import com.example.remedia.data.local.RecientesDataStore
 import com.example.remedia.data.local.RecientesDataSource
+import com.example.remedia.data.network.GeminiClient
 import com.example.remedia.data.repository.MedicamentosRepository
 import com.example.remedia.data.repository.MedicamentosRepositoryImpl
+import com.example.remedia.data.repository.NormalizadorGemini
+import com.example.remedia.data.repository.NormalizadorHeuristico
 import com.example.remedia.presentation.screens.DetalleScreen
 import com.example.remedia.presentation.screens.EscanerScreen
 import com.example.remedia.presentation.screens.InicioScreen
@@ -35,7 +39,19 @@ import com.example.remedia.presentation.viewmodel.MedicamentosViewModelFactory
 @Composable
 fun AppNavigation(
     navController: NavHostController = rememberNavController(),
-    repository: MedicamentosRepository = remember { MedicamentosRepositoryImpl() }
+    repository: MedicamentosRepository = remember {
+        MedicamentosRepositoryImpl(
+            normalizador = if (GeminiClient.habilitado) {
+                NormalizadorGemini(
+                    api = GeminiClient.api,
+                    modelo = BuildConfig.GEMINI_MODEL,
+                    clave = BuildConfig.GEMINI_API_KEY
+                )
+            } else {
+                NormalizadorHeuristico
+            }
+        )
+    }
 ) {
     val applicationContext = LocalContext.current.applicationContext
     val recientesSource: RecientesDataSource = remember(applicationContext) {

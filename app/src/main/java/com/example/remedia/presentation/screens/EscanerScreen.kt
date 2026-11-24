@@ -2,9 +2,12 @@ package com.example.remedia.presentation.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.view.MotionEvent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -72,15 +75,16 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
- * P2 · Escáner (estilo Stitch) con cámara real.
+ * P2 Â· EscÃ¡ner (estilo Stitch) con cÃ¡mara real.
  *
  * CameraX entrega el preview y frames al analizador; ML Kit lee el texto y el
- * ViewModel elige la mejor línea. El obturador confirma el texto leído y
+ * ViewModel elige la mejor lÃ­nea. El obturador confirma el texto leÃ­do y
  * "Buscar este medicamento" navega a Resultados con esa consulta.
  *
- * La cámara se enlaza al ciclo de vida de la pantalla y se libera al salir:
+ * La cÃ¡mara se enlaza al ciclo de vida de la pantalla y se libera al salir:
  * analizador, recognizer, executor y use cases. El permiso se pide al entrar
  * y se puede volver a pedir desde "Reintentar".
  */
@@ -131,6 +135,7 @@ fun EscanerScreen(
             .build()
         var proveedor: ProcessCameraProvider? = null
         var vistaPrevia: Preview? = null
+        var controlCamara: CameraControl? = null
         var desmontado = false
 
         analisis.setAnalyzer(executor) { imagen ->
@@ -151,7 +156,7 @@ fun EscanerScreen(
 
         val futuro = ProcessCameraProvider.getInstance(contexto)
         futuro.addListener({
-            // La pantalla pudo salir mientras se resolvía el provider: no enlazar nada.
+            // La pantalla pudo salir mientras se resolvÃ­a el provider: no enlazar nada.
             if (!desmontado) {
                 try {
                     proveedor = futuro.get()
@@ -159,12 +164,31 @@ fun EscanerScreen(
                         vista.setSurfaceProvider(vistaCamara.surfaceProvider)
                     }
                     vistaPrevia = preview
-                    proveedor?.bindToLifecycle(
+                    val camara = proveedor?.bindToLifecycle(
                         cicloVida,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         preview,
                         analisis
                     )
+                    controlCamara = camara?.cameraControl
+
+                    // Toque para enfocar: el nombre suele estar en una zona pequeÃ±a
+                    // de la caja y el autoenfoque de escena no siempre la elige.
+                    vistaCamara.setOnTouchListener { _, evento ->
+                        if (evento.action != MotionEvent.ACTION_DOWN) {
+                            return@setOnTouchListener false
+                        }
+                        val punto = vistaCamara.meteringPointFactory
+                            .createPoint(evento.x, evento.y)
+                        val enfoque = FocusMeteringAction.Builder(
+                            punto,
+                            FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE
+                        )
+                            .setAutoCancelDuration(3, TimeUnit.SECONDS)
+                            .build()
+                        controlCamara?.startFocusAndMetering(enfoque)
+                        true
+                    }
                     viewModel.onPermisoConcedido()
                 } catch (e: Exception) {
                     viewModel.onCamaraError(e.message)
@@ -174,6 +198,8 @@ fun EscanerScreen(
 
         onDispose {
             desmontado = true
+            vistaCamara.setOnTouchListener(null)
+            controlCamara = null
             analisis.clearAnalyzer()
             recognizer.close()
             executor.shutdownNow()
@@ -183,7 +209,7 @@ fun EscanerScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0B1120))) {
         AndroidView(factory = { vistaCamara }, modifier = Modifier.fillMaxSize())
-        // Velo oscuro para que el texto y la retícula se lean sobre cualquier caja.
+        // Velo oscuro para que el texto y la retÃ­cula se lean sobre cualquier caja.
         Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.38f)))
 
         Column(
@@ -222,7 +248,7 @@ fun EscanerScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "INVIMA VISIÓN",
+                        text = "INVIMA VISIÃ“N",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -243,7 +269,7 @@ fun EscanerScreen(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Enfoca el nombre del medicamento",
+                    text = "Toca el nombre del medicamento para enfocar",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
@@ -263,7 +289,7 @@ fun EscanerScreen(
                 onReintentar = {
                     viewModel.reiniciar()
                     if (permisoConcedido) {
-                        intento++ // vuelve a enlazar la cámara tras un error
+                        intento++ // vuelve a enlazar la cÃ¡mara tras un error
                     } else {
                         pedalPermiso.launch(Manifest.permission.CAMERA)
                     }
@@ -351,7 +377,7 @@ private fun Pastilla(contenido: @Composable () -> Unit) {
     }
 }
 
-/** Marco de encuadre con esquinas teal/blancas y una línea láser que sube y baja. */
+/** Marco de encuadre con esquinas teal/blancas y una lÃ­nea lÃ¡ser que sube y baja. */
 @Composable
 private fun Reticula() {
     val transicion = rememberInfiniteTransition(label = "laser")
@@ -412,7 +438,7 @@ private fun ResultadoEscaneo(
                 strokeWidth = 2.dp
             )
             Spacer(Modifier.width(8.dp))
-            Text("Leyendo el texto…", fontSize = 12.sp, color = Color.White)
+            Text("Leyendo el textoâ€¦", fontSize = 12.sp, color = Color.White)
         }
 
         is EstadoUi.Exito -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -442,7 +468,7 @@ private fun ResultadoEscaneo(
 
         is EstadoUi.Vacio -> if (textoVista.isBlank()) {
             Text(
-                text = "No se detectó texto. Acerca la cámara al nombre de la caja.",
+                text = "No se detectÃ³ texto. Acerca la cÃ¡mara al nombre de la caja.",
                 fontSize = 12.sp,
                 color = Gris400,
                 textAlign = TextAlign.Center

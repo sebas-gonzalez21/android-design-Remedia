@@ -2,6 +2,7 @@ package com.example.remedia
 
 import com.example.remedia.data.dto.PrecioDto
 import com.example.remedia.data.repository.MedicamentosRepositoryImpl
+import com.example.remedia.data.repository.NormalizadorConsulta
 import com.example.remedia.data.repository.candidatosDeBusqueda
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -133,6 +134,29 @@ class MedicamentosRepositoryImplTest {
             listOf("ACETAMINOFEN", "CAFEINA"),
             resultado.first().principiosActivos
         )
+    }
+
+    @Test
+    fun `el repositorio prueba los candidatos que entrega el normalizador inyectado`() = runTest {
+        api.buscarHandler = { emptyList() }
+        api.buscarPorNombreHandler = { where ->
+            if (where.contains("ASPIRINA")) {
+                listOf(dtoDePrueba(producto = "ASPIRINA 100 MG"))
+            } else {
+                emptyList()
+            }
+        }
+        val repositorioConGemini = MedicamentosRepositoryImpl(
+            api = api,
+            normalizador = object : NormalizadorConsulta {
+                override suspend fun candidatos(texto: String) = listOf("ASPIRINA")
+            }
+        )
+
+        val resultado = repositorioConGemini.buscar("texto ruidoso cualquiera")
+
+        assertEquals("ASPIRINA 100 MG", resultado.single().nombre)
+        assertEquals("upper(producto) like 'ASPIRINA%'", api.whereBusquedaRecibido)
     }
 
     private inline fun capture(bloque: () -> Unit): Throwable? = try {
