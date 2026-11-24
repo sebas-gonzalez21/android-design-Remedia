@@ -17,8 +17,8 @@ object GeminiClient {
     // convertir una bÃºsqueda fallida en una espera larga.
     private val cliente = OkHttpClient.Builder()
         .connectTimeout(3, TimeUnit.SECONDS)
-        .readTimeout(6, TimeUnit.SECONDS)
-        .writeTimeout(6, TimeUnit.SECONDS)
+        .readTimeout(12, TimeUnit.SECONDS)
+        .writeTimeout(12, TimeUnit.SECONDS)
         .build()
 
     private val urlBase = BuildConfig.GEMINI_BASE_URL.let { url ->

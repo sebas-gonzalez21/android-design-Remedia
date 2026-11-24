@@ -12,7 +12,7 @@ class NormalizadorGeminiTest {
     private val api = FakeGeminiApi()
     private val normalizador = NormalizadorGemini(
         api = api,
-        modelo = "gemini-2.0-flash",
+        modelo = "gemini-3.1-flash-lite",
         clave = "CLAVE-DE-PRUEBA"
     )
 
@@ -23,7 +23,7 @@ class NormalizadorGeminiTest {
         val candidatos = normalizador.candidatos("texto del ocr")
 
         assertEquals(listOf("ASPIRINA", "DOLEX AVANZADO"), candidatos)
-        assertEquals("gemini-2.0-flash", api.ultimoModelo)
+        assertEquals("gemini-3.1-flash-lite", api.ultimoModelo)
         assertEquals("CLAVE-DE-PRUEBA", api.ultimaClave)
         assertEquals(1, api.llamadas)
         assertEquals(true, api.ultimaPeticion?.contents?.first()?.parts?.first()?.text?.contains("OCR"))
