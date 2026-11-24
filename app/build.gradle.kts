@@ -9,7 +9,9 @@ val localProps = Properties().apply {
 fun String.paraBuildConfig(): String = replace("\\", "\\\\").replace("\"", "\\\"")
 
 fun propiedad(nombre: String, defecto: String = ""): String =
-    localProps.getProperty(nombre, defecto).paraBuildConfig()
+    localProps.getProperty(nombre, defecto).takeIf { it.isNotBlank() }
+        ?: defecto
+        .paraBuildConfig()
 
 plugins {
     alias(libs.plugins.android.application)

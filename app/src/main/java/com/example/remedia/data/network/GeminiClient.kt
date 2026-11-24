@@ -21,9 +21,10 @@ object GeminiClient {
         .writeTimeout(12, TimeUnit.SECONDS)
         .build()
 
-    private val urlBase = BuildConfig.GEMINI_BASE_URL.let { url ->
-        if (url.endsWith("/")) url else "$url/"
-    }
+    private val urlBase = BuildConfig.GEMINI_BASE_URL
+        .takeIf { it.startsWith("http://") || it.startsWith("https://") }
+        ?.let { url -> if (url.endsWith("/")) url else "$url/" }
+        ?: "https://generativelanguage.googleapis.com/"
 
     val api: GeminiApi = Retrofit.Builder()
         .baseUrl(urlBase)
