@@ -14,26 +14,72 @@ import java.util.Locale
 
 private val MARCAS_DIACRITICAS = Regex("\\p{M}+")
 private val ESPACIOS_MULTIPLES = Regex("\\s+")
+private val CARACTERES_RUIDO = Regex("[^A-Z0-9 ]")
+
+/** Palabras que aparecen en la caja pero que no identifican el producto. */
+private val PALABRAS_RUIDO = setOf(
+    "ALVIO", "DOLOR", "GENERAL", "TABLETA", "TABLETAS", "CAPSULA", "CAPSULAS",
+    "COMPRIMIDO", "GRANULADO", "POLVO", "SOLUCION", "INYECTABLE", "GOTAS",
+    "CREMA", "UNGUENTO", "JARABE", "SUSPENSION", "CAJA", "FRASCO", "SOBRE",
+    "BLISTER", "MG", "ML", "MCG", "UI", "DEL", "LAS", "LOS", "CON", "PARA", "POR"
+)
+
+/** Tope de peticiones de respaldo para no castigar la API con texto ruidoso. */
+private const val MAX_CANDIDATOS = 5
+
+/** Normaliza acentos, mayÃºsculas y espacios; se usa para comparar catÃ¡logos. */
+internal fun normalizarTexto(texto: String?): String? =
+    texto?.trim()
+        ?.let { Normalizer.normalize(it, Normalizer.Form.NFD) }
+        ?.replace(MARCAS_DIACRITICAS, "")
+        ?.replace(ESPACIOS_MULTIPLES, " ")
+        ?.uppercase(Locale.ROOT)
+        ?.takeIf { it.isNotBlank() }
+
+/**
+ * Palabras Ãºtiles de una consulta, ordenadas por tamaÃ±o. El OCR suele entregar
+ * frases largas con ruido; las palabras mÃ¡s largas suelen ser el nombre comercial
+ * (por ejemplo, "Aspirina" dentro de "... Alvio Del Dolor General Aspirina ...").
+ */
+internal fun candidatosDeBusqueda(texto: String): List<String> =
+    normalizarTexto(texto)
+        ?.replace(CARACTERES_RUIDO, " ")
+        ?.split(ESPACIOS_MULTIPLES)
+        ?.filter { token ->
+            val letras = token.count { it.isLetter() }
+            val digitos = token.count { it.isDigit() }
+            token.length >= 3 && letras >= 3 && digitos <= letras && token !in PALABRAS_RUIDO
+        }
+        ?.distinct()
+        ?.sortedByDescending { it.length }
+        ?: emptyList()
 
 /**
  * Puente entre la API (Retrofit) y la Vista. Los ViewModels solo hablan con esto.
  *
- * Dataset i7cb-raxc (CUM Vigentes, INVIMA) para búsqueda y detalle. El precio
- * regulado (nauz-qkjw) y el catálogo de venta libre (xzwx-qpja) son datos
+ * Dataset i7cb-raxc (CUM Vigentes, INVIMA) para bÃºsqueda y detalle. El precio
+ * regulado (nauz-qkjw) y el catÃ¡logo de venta libre (xzwx-qpja) son datos
  * complementarios: si fallan, se muestra "sin dato" pero la pantalla sigue
- * funcionando. Nunca se tragamos una [CancellationException]: la cancelación
- * estructurada debe llegar hasta la corrutina que la originó.
+ * funcionando. Nunca se tragamos una [CancellationException]: la cancelaciÃ³n
+ * estructurada debe llegar hasta la corrutina que la originÃ³.
  */
 class MedicamentosRepositoryImpl(
     private val api: MedicamentosApi = RetrofitClient.api
 ) : MedicamentosRepository {
 
-    /** Una sola carga del catálogo de venta libre por proceso, sin peticiones N+1. */
+    /** Una sola carga del catÃ¡logo de venta libre por proceso, sin peticiones N+1. */
     private val catalogoMutex = Mutex()
     private var principiosVentaLibre: Set<String>? = null
 
     override suspend fun buscar(texto: String): List<Medicamento> {
-        val medicamentos = api.buscar(texto = texto).map { it.toMedicamentoBasico() }
+        val encontrados = api.buscar(texto = texto)
+        // El texto venÃ­a del OCR y puede tener ruido. Antes de rendirnos, probamos
+        // las palabras candidatas como prefijo del nombre comercial.
+        val medicamentos = if (encontrados.isNotEmpty()) {
+            encontrados.map { it.toMedicamentoBasico() }
+        } else {
+            buscarPorCandidatos(texto)
+        }
         val catalogo = catalogoVentaLibre() ?: return medicamentos
 
         return medicamentos.map { medicamento ->
@@ -43,15 +89,25 @@ class MedicamentosRepositoryImpl(
         }
     }
 
+    /** Prueba `upper(producto) like 'PALABRA%'` hasta encontrar resultados. */
+    private suspend fun buscarPorCandidatos(texto: String): List<Medicamento> {
+        for (candidato in candidatosDeBusqueda(texto).take(MAX_CANDIDATOS)) {
+            val where = "upper(producto) like '${candidato.replace("'", "''")}%'"
+            val encontrados = api.buscarPorNombre(where = where).map { it.toMedicamentoBasico() }
+            if (encontrados.isNotEmpty()) return encontrados
+        }
+        return emptyList()
+    }
+
     override suspend fun cargarDetalle(expediente: String): Medicamento? {
         val id = expediente.trim()
-        require(id.isNotEmpty() && id.all { it.isDigit() }) { "Expediente no válido: $expediente" }
+        require(id.isNotEmpty() && id.all { it.isDigit() }) { "Expediente no vÃ¡lido: $expediente" }
 
         val base = api.detalle(id).firstOrNull()?.toMedicamentoBasico() ?: return null
 
         return coroutineScope {
-            // El detalle va primero (de él salen el expediente y el principio activo),
-            // pero precio y venta libre son independientes entre sí: en paralelo.
+            // El detalle va primero (de Ã©l salen el expediente y el principio activo),
+            // pero precio y venta libre son independientes entre sÃ­: en paralelo.
             val precioDiferido = async { precioMaximo(id) }
             val ventaLibreDiferido = async { esVentaLibre(base.principiosActivos.firstOrNull()) }
 
@@ -63,8 +119,8 @@ class MedicamentosRepositoryImpl(
     }
 
     private suspend fun precioMaximo(expediente: String): String? = try {
-        // El expediente ya está validado como numérico; duplicar la comilla es defensa
-        // en profundidad por si algún día cambia el formato del dataset.
+        // El expediente ya estÃ¡ validado como numÃ©rico; duplicar la comilla es defensa
+        // en profundidad por si algÃºn dÃ­a cambia el formato del dataset.
         val where = "starts_with(cum, '${expediente.replace("'", "''")}-')"
         api.precio(where = where)
             .firstOrNull()?.precioMaximo
@@ -72,7 +128,7 @@ class MedicamentosRepositoryImpl(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        null // Sin precio es un resultado válido, no un error.
+        null // Sin precio es un resultado vÃ¡lido, no un error.
     }
 
     private suspend fun esVentaLibre(principioActivo: String?): Boolean {
@@ -81,7 +137,7 @@ class MedicamentosRepositoryImpl(
         return principio in catalogo
     }
 
-    /** Devuelve null solo si el catálogo opcional no se pudo cargar. */
+    /** Devuelve null solo si el catÃ¡logo opcional no se pudo cargar. */
     private suspend fun catalogoVentaLibre(): Set<String>? = try {
         catalogoMutex.withLock {
             principiosVentaLibre ?: api.ventaLibrePrincipios()
@@ -97,15 +153,9 @@ class MedicamentosRepositoryImpl(
 
     /**
      * Los dos datasets difieren en tildes y espacios: "ACETAMINOFEN" (CUM) frente
-     * a "Acetaminofén" (venta libre). Normalizamos acentos, mayúsculas y espacios.
+     * a "AcetaminofÃ©n" (venta libre). Normalizamos acentos, mayÃºsculas y espacios.
      */
-    private fun normalizar(texto: String?): String? =
-        texto?.trim()
-            ?.let { Normalizer.normalize(it, Normalizer.Form.NFD) }
-            ?.replace(MARCAS_DIACRITICAS, "")
-            ?.replace(ESPACIOS_MULTIPLES, " ")
-            ?.uppercase(Locale.ROOT)
-            ?.takeIf { it.isNotBlank() }
+    private fun normalizar(texto: String?): String? = normalizarTexto(texto)
 
     private fun String?.esVentaLibre(catalogo: Set<String>): Boolean =
         normalizar(this)?.let { it in catalogo } ?: false
@@ -118,7 +168,7 @@ class MedicamentosRepositoryImpl(
             laboratorio = titular?.trim().orEmpty().ifBlank { "No especificado" },
             formaFarmaceutica = formafarmaceutica?.trim().orEmpty().ifBlank { "No especificado" },
             vigente = estadoregistro?.trim().equals("Vigente", ignoreCase = true),
-            // Se completa en buscar()/cargarDetalle() con el catálogo de venta libre.
+            // Se completa en buscar()/cargarDetalle() con el catÃ¡logo de venta libre.
             ventaLibre = false,
             paraQueSirve = descripcionatc?.trim().orEmpty().ifBlank { "No especificado" },
             principiosActivos = principioactivo?.let { listOf(it) } ?: emptyList(),

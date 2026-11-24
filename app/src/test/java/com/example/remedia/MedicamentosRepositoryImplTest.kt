@@ -2,6 +2,7 @@ package com.example.remedia
 
 import com.example.remedia.data.dto.PrecioDto
 import com.example.remedia.data.repository.MedicamentosRepositoryImpl
+import com.example.remedia.data.repository.candidatosDeBusqueda
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
@@ -18,8 +19,8 @@ class MedicamentosRepositoryImplTest {
     @Test
     fun `buscar completa venta libre y descripcion desde el select ampliado`() = runTest {
         api.buscarHandler = { listOf(dtoDePrueba(principioactivo = " ACETAMINOFEN ")) }
-        // El catálogo real usa tilde; el CUM no. La comparación debe ignorar acentos.
-        api.ventaLibreHandler = { listOf(mapOf("principioactivo" to "  Acetaminofén  ")) }
+        // El catÃ¡logo real usa tilde; el CUM no. La comparaciÃ³n debe ignorar acentos.
+        api.ventaLibreHandler = { listOf(mapOf("principioactivo" to "  AcetaminofÃ©n  ")) }
 
         val resultado = repository.buscar("dolex")
 
@@ -83,6 +84,35 @@ class MedicamentosRepositoryImplTest {
         val lanzada = capture { repository.cargarDetalle("123' OR '1'='1") }
         assertTrue(lanzada is IllegalArgumentException)
         assertEquals(0, api.llamadasDetalle)
+    }
+
+    @Test
+    fun `candidatos de busqueda descartan ruido y priorizan la palabra mas larga`() {
+        val candidatos = candidatosDeBusqueda(
+            "Ince I Medcanerts I ta re Alvio Del Dolor / Dolor General Aspirina 100mg Tableta"
+        )
+
+        assertEquals(listOf("MEDCANERTS", "ASPIRINA", "INCE"), candidatos)
+    }
+
+    @Test
+    fun `texto ruidoso del ocr encuentra el medicamento por prefijo`() = runTest {
+        api.buscarHandler = { emptyList() }
+        api.buscarPorNombreHandler = { where ->
+            if (where.contains("ASPIRINA")) {
+                listOf(dtoDePrueba(producto = "ASPIRINA 100 MG"))
+            } else {
+                emptyList()
+            }
+        }
+
+        val resultado = repository.buscar(
+            "Ince I Medcanerts I ta re Alvio Del Dolor / Dolor General Aspirina 100mg Tableta"
+        )
+
+        assertEquals("ASPIRINA 100 MG", resultado.single().nombre)
+        assertTrue(api.wheresBusqueda.first().contains("MEDCANERTS"))
+        assertEquals("upper(producto) like 'ASPIRINA%'", api.whereBusquedaRecibido)
     }
 
     private inline fun capture(bloque: () -> Unit): Throwable? = try {

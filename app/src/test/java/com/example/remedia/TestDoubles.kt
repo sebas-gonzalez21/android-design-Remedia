@@ -29,11 +29,12 @@ internal fun medicamentoDePrueba(
 
 internal fun dtoDePrueba(
     expediente: String = "123",
+    producto: String = "DOLEX",
     descripcionatc: String? = "PARACETAMOL",
     principioactivo: String? = "ACETAMINOFEN"
 ) = MedicamentoDto(
     expediente = expediente,
-    producto = "DOLEX",
+    producto = producto,
     titular = "HALEON",
     estadoregistro = "Vigente",
     formafarmaceutica = "TABLETA",
@@ -76,6 +77,9 @@ internal class FakeRecientesDataSource : RecientesDataSource {
 
 internal class FakeMedicamentosApi : MedicamentosApi {
     var buscarHandler: suspend (String) -> List<MedicamentoDto> = { emptyList() }
+    var buscarPorNombreHandler: suspend (String) -> List<MedicamentoDto> = { emptyList() }
+    var whereBusquedaRecibido: String? = null
+    val wheresBusqueda = mutableListOf<String>()
     var detalleHandler: suspend (String) -> List<MedicamentoDto> = { emptyList() }
     var precioHandler: suspend (String) -> List<PrecioDto> = { emptyList() }
     var ventaLibreHandler: suspend () -> List<Map<String, Any>> = { emptyList() }
@@ -89,6 +93,17 @@ internal class FakeMedicamentosApi : MedicamentosApi {
         group: String,
         limit: Int
     ): List<MedicamentoDto> = buscarHandler(texto)
+
+    override suspend fun buscarPorNombre(
+        where: String,
+        select: String,
+        group: String,
+        limit: Int
+    ): List<MedicamentoDto> {
+        whereBusquedaRecibido = where
+        wheresBusqueda += where
+        return buscarPorNombreHandler(where)
+    }
 
     override suspend fun detalle(expediente: String, limit: Int): List<MedicamentoDto> {
         llamadasDetalle++
