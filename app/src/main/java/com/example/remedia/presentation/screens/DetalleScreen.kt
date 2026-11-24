@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Medication
 import androidx.compose.material.icons.outlined.Payments
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import com.example.remedia.presentation.components.BotonCircular
 import com.example.remedia.presentation.components.EstadoChip
 import com.example.remedia.presentation.components.EstadoContenido
+import com.example.remedia.presentation.components.ImagenProducto
 import com.example.remedia.presentation.components.entradaSuave
 import com.example.remedia.presentation.viewmodel.DetalleViewModel
 import com.example.remedia.presentation.viewmodel.EstadoUi
@@ -73,10 +75,10 @@ import com.example.remedia.ui.theme.Vigente
 import com.example.remedia.ui.theme.VigenteFondo
 
 /**
- * P4 · Detalle / Ficha técnica (estilo Stitch).
+ * P4 Â· Detalle / Ficha tÃ©cnica (estilo Stitch).
  * Recibe el ViewModel: lanza la carga con LaunchedEffect(expediente) y observa el
- * resultado con collectAsStateWithLifecycle(). El ViewModel cachea la ficha, así
- * que revisitarla no repite las peticiones. Solo muestra datos que sí entrega la API.
+ * resultado con collectAsStateWithLifecycle(). El ViewModel cachea la ficha, asÃ­
+ * que revisitarla no repite las peticiones. Solo muestra datos que sÃ­ entrega la API.
  */
 @Composable
 fun DetalleScreen(
@@ -92,7 +94,7 @@ fun DetalleScreen(
         containerColor = Fondo,
         bottomBar = {
             // 'estado' es una propiedad delegada (by): Kotlin no permite smart cast sobre ella,
-            // así que se copia a una variable local antes de comprobar el tipo.
+            // asÃ­ que se copia a una variable local antes de comprobar el tipo.
             val estadoActual = estado
             if (estadoActual is EstadoUi.Exito) {
                 val med = estadoActual.datos
@@ -104,7 +106,7 @@ fun DetalleScreen(
     ) { padding ->
         EstadoContenido(
             estado = estado,
-            mensajeVacio = "No se encontró este medicamento.",
+            mensajeVacio = "No se encontrÃ³ este medicamento.",
             onReintentar = { viewModel.cargar(expediente, forzar = true) },
             modifier = Modifier.padding(bottom = padding.calculateBottomPadding())
         ) { med ->
@@ -117,11 +119,31 @@ fun DetalleScreen(
 
                 item {
                     TarjetaSeccion(
-                        icono = Icons.Outlined.Medication,
-                        titulo = "¿Para qué sirve?",
+                        icono = Icons.Outlined.Image,
+                        titulo = "Imagen del producto",
                         indice = 0,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     ) {
+                        ImagenProducto(imagenes = med.imagenes, nombre = med.nombre)
+                    }
+                }
+
+                item {
+                    TarjetaSeccion(
+                        icono = Icons.Outlined.Medication,
+                        titulo = "Â¿Para quÃ© sirve?",
+                        indice = 1,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    ) {
+                        if (med.paraQueSirveIA) {
+                            Text(
+                                text = "EXPLICACIÃ“N GENERADA CON IA",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TealPrimary
+                            )
+                            Spacer(Modifier.height(6.dp))
+                        }
                         Text(
                             text = med.paraQueSirve,
                             fontSize = 13.sp,
@@ -135,7 +157,7 @@ fun DetalleScreen(
                     TarjetaSeccion(
                         icono = Icons.Outlined.Science,
                         titulo = "Principios activos",
-                        indice = 1,
+                        indice = 2,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     ) {
                         med.principiosActivos.forEach { principio ->
@@ -169,7 +191,7 @@ fun DetalleScreen(
                                 .padding(top = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Forma farmacéutica", fontSize = 12.sp, color = TextoSecundario)
+                            Text("Forma farmacÃ©utica", fontSize = 12.sp, color = TextoSecundario)
                             Text(
                                 text = med.formaFarmaceutica,
                                 fontSize = 12.sp,
@@ -184,7 +206,7 @@ fun DetalleScreen(
                     TarjetaSeccion(
                         icono = Icons.Outlined.VerifiedUser,
                         titulo = "Registro INVIMA",
-                        indice = 2,
+                        indice = 3,
                         modifier = Modifier.padding(horizontal = 16.dp),
                         extremo = { EstadoChip(vigente = med.vigente) }
                     ) {
@@ -196,7 +218,7 @@ fun DetalleScreen(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    text = "CÓDIGO REGISTRO SANITARIO",
+                                    text = "CÃ“DIGO REGISTRO SANITARIO",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Gris400
@@ -233,8 +255,8 @@ fun DetalleScreen(
                 item {
                     TarjetaSeccion(
                         icono = Icons.Outlined.Payments,
-                        titulo = "Precio máximo legal",
-                        indice = 3,
+                        titulo = "Precio mÃ¡ximo legal",
+                        indice = 4,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     ) {
                         if (med.precioMaximo != null) {
@@ -305,7 +327,7 @@ private fun Cabecera(med: Medicamento, onVolver: () -> Unit) {
                 fontWeight = FontWeight.ExtraBold,
                 color = TealPrimary
             )
-            Text(text = "  •  Ficha técnica", fontSize = 12.sp, color = TextoSecundario)
+            Text(text = "  â€¢  Ficha tÃ©cnica", fontSize = 12.sp, color = TextoSecundario)
             Spacer(Modifier.weight(1f))
             BotonCircular(onClick = { }) {
                 Icon(
@@ -332,7 +354,7 @@ private fun Cabecera(med: Medicamento, onVolver: () -> Unit) {
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = "FICHA TÉCNICA OFICIAL",
+                    text = "FICHA TÃ‰CNICA OFICIAL",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = TealPrimary
@@ -389,7 +411,7 @@ private fun Cabecera(med: Medicamento, onVolver: () -> Unit) {
     }
 }
 
-/** Insignia destacada del encabezado: verde con escudo (venta libre) o ámbar (fórmula). */
+/** Insignia destacada del encabezado: verde con escudo (venta libre) o Ã¡mbar (fÃ³rmula). */
 @Composable
 private fun InsigniaVentaLibre(ventaLibre: Boolean) {
     val fondo = if (ventaLibre) VigenteFondo else FormulaFondo
@@ -408,7 +430,7 @@ private fun InsigniaVentaLibre(ventaLibre: Boolean) {
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                text = if (ventaLibre) "Venta libre" else "Requiere fórmula",
+                text = if (ventaLibre) "Venta libre" else "Requiere fÃ³rmula",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = color

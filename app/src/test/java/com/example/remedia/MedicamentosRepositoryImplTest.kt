@@ -1,6 +1,9 @@
 package com.example.remedia
 
 import com.example.remedia.data.dto.PrecioDto
+import com.example.remedia.data.model.Medicamento
+import com.example.remedia.data.repository.EnriquecedorFicha
+import com.example.remedia.data.repository.FichaEnriquecida
 import com.example.remedia.data.repository.MedicamentosRepositoryImpl
 import com.example.remedia.data.repository.NormalizadorConsulta
 import com.example.remedia.data.repository.candidatosDeBusqueda
@@ -187,6 +190,46 @@ class MedicamentosRepositoryImplTest {
         assertEquals("ASPIRINA 100 MG", resultado.single().nombre)
         assertEquals(0, api.llamadasBuscar)
         assertEquals("upper(producto) like 'ASPIRINA%'", api.whereBusquedaRecibido)
+    }
+
+    @Test
+    fun `el detalle usa el enriquecedor sin perder los datos oficiales`() = runTest {
+        api.detalleHandler = { listOf(dtoDePrueba()) }
+        val repositorioConIA = MedicamentosRepositoryImpl(
+            api = api,
+            enriquecedor = object : EnriquecedorFicha {
+                override suspend fun enriquecer(medicamento: Medicamento) = FichaEnriquecida(
+                    paraQueSirve = "Alivia el dolor leve y la fiebre de forma temporal.",
+                    imagenes = listOf("https://ejemplo.com/caja.png")
+                )
+            }
+        )
+
+        val resultado = repositorioConIA.cargarDetalle("123")!!
+
+        assertEquals("Alivia el dolor leve y la fiebre de forma temporal.", resultado.paraQueSirve)
+        assertTrue(resultado.paraQueSirveIA)
+        assertEquals(listOf("https://ejemplo.com/caja.png"), resultado.imagenes)
+        assertEquals("ACETAMINOFEN", resultado.principiosActivos.single())
+        assertEquals("No disponible", resultado.registroInvima)
+    }
+
+    @Test
+    fun `si el enriquecedor falla se conserva la descripcion del catalogo`() = runTest {
+        api.detalleHandler = { listOf(dtoDePrueba()) }
+        val repositorioConIA = MedicamentosRepositoryImpl(
+            api = api,
+            enriquecedor = object : EnriquecedorFicha {
+                override suspend fun enriquecer(medicamento: Medicamento): FichaEnriquecida =
+                    throw IllegalStateException("Gemini no respondiÃ³")
+            }
+        )
+
+        val resultado = repositorioConIA.cargarDetalle("123")!!
+
+        assertEquals("PARACETAMOL", resultado.paraQueSirve)
+        assertEquals(false, resultado.paraQueSirveIA)
+        assertTrue(resultado.imagenes.isEmpty())
     }
 
     private inline fun capture(bloque: () -> Unit): Throwable? = try {

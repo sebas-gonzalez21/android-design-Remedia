@@ -24,8 +24,8 @@ class EscanerViewModelTest {
 
         val exito = viewModel.estado.value as EstadoUi.Exito<TextoEscaneado>
         assertEquals("DOLEX AVANZADO", exito.datos.consulta)
-        // Confianza alta: no hace falta mandar el OCR completo a la bÃºsqueda.
-        assertEquals("DOLEX AVANZADO", exito.datos.contexto)
+        // El OCR completo siempre viaja para que Gemini pueda refinar la bÃºsqueda.
+        assertTrue(exito.datos.contexto.contains("INVIMA"))
     }
 
     @Test
@@ -96,7 +96,7 @@ class EscanerViewModelTest {
     }
 
     @Test
-    fun `un nombre detectado con confianza no arrastra el ruido del ocr`() {
+    fun `el escanner siempre entrega el ocr completo para gemini`() {
         viewModel.onTextoReconocido(
             listOf("Ince I Medcanerts I ta re Alvio Del Dolor / Dolor General Aspirina 100mg Tableta")
         )
@@ -105,7 +105,8 @@ class EscanerViewModelTest {
         val exito = viewModel.estado.value as EstadoUi.Exito<TextoEscaneado>
 
         assertEquals("ASPIRINA", exito.datos.consulta)
-        assertEquals("ASPIRINA", exito.datos.contexto)
+        assertTrue(exito.datos.contexto.contains("Medcanerts", ignoreCase = true))
+        assertTrue(exito.datos.contexto.contains("Aspirina", ignoreCase = true))
     }
 
     @Test

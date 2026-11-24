@@ -53,12 +53,12 @@ class EscanerViewModel : ViewModel() {
             EstadoUi.Vacio
         } else {
             val crudo = lineasCrudas.joinToString(" | ")
-            val necesitaContexto =
-                crudo.isNotBlank() && TextoMedicamentoExtractor.puntuacion(texto) < UMBRAL_CONFIANZA
             EstadoUi.Exito(
                 TextoEscaneado(
                     consulta = texto,
-                    contexto = if (necesitaContexto) crudo else texto
+                    // Siempre viaja el OCR completo: con key configurada, el
+                    // repositorio usa Gemini sobre este texto antes de buscar.
+                    contexto = crudo.ifBlank { texto }
                 )
             )
         }
@@ -92,7 +92,5 @@ class EscanerViewModel : ViewModel() {
 
     private companion object {
         const val MAX_LINEAS = 12
-        /** Por debajo de esto preferimos preguntarle al normalizador (OCR/Gemini). */
-        const val UMBRAL_CONFIANZA = 19
     }
 }

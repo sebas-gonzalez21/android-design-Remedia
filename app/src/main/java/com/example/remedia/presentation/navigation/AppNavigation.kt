@@ -13,6 +13,8 @@ import com.example.remedia.BuildConfig
 import com.example.remedia.data.local.RecientesDataStore
 import com.example.remedia.data.local.RecientesDataSource
 import com.example.remedia.data.network.GeminiClient
+import com.example.remedia.data.repository.EnriquecedorFichaGemini
+import com.example.remedia.data.repository.EnriquecedorFichaVacio
 import com.example.remedia.data.repository.MedicamentosRepository
 import com.example.remedia.data.repository.MedicamentosRepositoryImpl
 import com.example.remedia.data.repository.NormalizadorGemini
@@ -49,6 +51,15 @@ fun AppNavigation(
                 )
             } else {
                 NormalizadorHeuristico
+            },
+            enriquecedor = if (GeminiClient.habilitado) {
+                EnriquecedorFichaGemini(
+                    api = GeminiClient.api,
+                    modelo = BuildConfig.GEMINI_MODEL,
+                    clave = BuildConfig.GEMINI_API_KEY
+                )
+            } else {
+                EnriquecedorFichaVacio
             }
         )
     }

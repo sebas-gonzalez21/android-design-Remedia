@@ -71,9 +71,6 @@ internal object TextoMedicamentoExtractor {
         }
     }
 
-    /** Confianza del nombre ya elegido: sirve para decidir si hace falta el OCR crudo. */
-    internal fun puntuacion(texto: String): Int = analizar(texto).puntos
-
     private fun analizar(texto: String): Candidato {
         val normalizado = normalizar(texto)
         if (normalizado.isBlank() || normalizado.length > 120) return Candidato("", 0)

@@ -65,7 +65,8 @@ internal fun candidatosDeBusqueda(texto: String): List<String> =
  */
 class MedicamentosRepositoryImpl(
     private val api: MedicamentosApi = RetrofitClient.api,
-    private val normalizador: NormalizadorConsulta = NormalizadorHeuristico
+    private val normalizador: NormalizadorConsulta = NormalizadorHeuristico,
+    private val enriquecedor: EnriquecedorFicha = EnriquecedorFichaVacio
 ) : MedicamentosRepository {
 
     /** Una sola carga del catÃ¡logo de venta libre por proceso, sin peticiones N+1. */
@@ -126,13 +127,29 @@ class MedicamentosRepositoryImpl(
 
         return coroutineScope {
             // El detalle va primero (de Ã©l salen el expediente y el principio activo),
-            // pero precio y venta libre son independientes entre sÃ­: en paralelo.
+            // pero precio, venta libre y enriquecimiento son independientes: en paralelo.
             val precioDiferido = async { precioMaximo(id) }
             val ventaLibreDiferido = async { esVentaLibre(base.principiosActivos.firstOrNull()) }
+            // Se atrapa aquÃ­, dentro de la corrutina hija: si se dejara escapar,
+            // la excepciÃ³n llegarÃ­a al scope y tumbarÃ­a tambiÃ©n precio/venta libre.
+            val fichaDiferida = async {
+                try {
+                    enriquecedor.enriquecer(base)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    FichaEnriquecida() // La ficha sigue funcionando sin IA.
+                }
+            }
+
+            val ficha = fichaDiferida.await()
 
             base.copy(
                 precioMaximo = precioDiferido.await(),
-                ventaLibre = ventaLibreDiferido.await()
+                ventaLibre = ventaLibreDiferido.await(),
+                paraQueSirve = ficha.paraQueSirve ?: base.paraQueSirve,
+                paraQueSirveIA = ficha.paraQueSirve != null,
+                imagenes = ficha.imagenes
             )
         }
     }
