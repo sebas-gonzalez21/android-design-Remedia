@@ -29,7 +29,7 @@ class BusquedaViewModelTest {
 
     @Test
     fun `buscar guarda resultado y reciente`() = runTest {
-        repository.buscarHandler = { listOf(medicamentoDePrueba()) }
+        repository.buscarHandler = { _, _ -> listOf(medicamentoDePrueba()) }
 
         viewModel.buscar("  dolex  ")
 
@@ -50,7 +50,7 @@ class BusquedaViewModelTest {
 
     @Test
     fun `revisitar resultados no repite peticion ni registro`() = runTest {
-        repository.buscarHandler = { listOf(medicamentoDePrueba()) }
+        repository.buscarHandler = { _, _ -> listOf(medicamentoDePrueba()) }
         viewModel.buscar("dolex")
         repository.consultas.clear()
 
@@ -64,7 +64,7 @@ class BusquedaViewModelTest {
     @Test
     fun `nueva busqueda cancela la anterior sin pisar el resultado`() = runTest {
         val compuerta = CompletableDeferred<Unit>()
-        repository.buscarHandler = { texto ->
+        repository.buscarHandler = { texto, _ ->
             if (texto == "lenta") {
                 compuerta.await()
                 currentCoroutineContext().ensureActive()
@@ -84,7 +84,7 @@ class BusquedaViewModelTest {
     @Test
     fun `reintentar con forzar ignora la cache de error`() = runTest {
         var llamadas = 0
-        repository.buscarHandler = {
+        repository.buscarHandler = { _, _ ->
             llamadas++
             if (llamadas == 1) throw IOException("sin red") else listOf(medicamentoDePrueba())
         }
@@ -96,5 +96,15 @@ class BusquedaViewModelTest {
 
         assertTrue(viewModel.resultados.value is EstadoUi.Exito)
         assertEquals(2, llamadas)
+    }
+
+    @Test
+    fun `el contexto del escanner se pasa al repositorio`() = runTest {
+        repository.buscarHandler = { _, _ -> listOf(medicamentoDePrueba()) }
+
+        viewModel.buscar("ASPIRINA", "OCR con ruido | Aspirina 100mg")
+
+        assertEquals("ASPIRINA", repository.consultas.single())
+        assertEquals("OCR con ruido | Aspirina 100mg", repository.contextos.single())
     }
 }

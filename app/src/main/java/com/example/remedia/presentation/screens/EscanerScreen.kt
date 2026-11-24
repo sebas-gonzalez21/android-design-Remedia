@@ -39,8 +39,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -68,9 +70,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.remedia.presentation.viewmodel.EscanerViewModel
 import com.example.remedia.presentation.viewmodel.EstadoUi
+import com.example.remedia.presentation.viewmodel.TextoEscaneado
 import com.example.remedia.ui.theme.Gris400
 import com.example.remedia.ui.theme.TealPrimary
 import com.example.remedia.ui.theme.TealSoft
+import com.example.remedia.ui.theme.TextoSecundario
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -92,7 +96,7 @@ import java.util.concurrent.TimeUnit
 fun EscanerScreen(
     viewModel: EscanerViewModel,
     onVolver: () -> Unit,
-    onUsarTexto: (String) -> Unit
+    onUsarTexto: (TextoEscaneado) -> Unit
 ) {
     val contexto = LocalContext.current
     val cicloVida = LocalLifecycleOwner.current
@@ -106,6 +110,8 @@ fun EscanerScreen(
         )
     }
     var intento by remember { mutableStateOf(0) }
+    var editando by remember { mutableStateOf(false) }
+    var borrador by remember { mutableStateOf("") }
 
     val pedalPermiso = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -332,7 +338,10 @@ fun EscanerScreen(
             Spacer(Modifier.height(16.dp))
 
             Surface(
-                onClick = onVolver,
+                onClick = {
+                    borrador = textoDetectado
+                    editando = true
+                },
                 shape = RoundedCornerShape(50),
                 color = Color(0xFF1E293B).copy(alpha = 0.8f),
                 border = BorderStroke(1.dp, Color(0xFF334155))
@@ -357,6 +366,44 @@ fun EscanerScreen(
                 }
             }
             Spacer(Modifier.height(8.dp))
+        }
+
+        if (editando) {
+            AlertDialog(
+                onDismissRequest = { editando = false },
+                title = { Text("Corregir el nombre") },
+                text = {
+                    Column {
+                        Text(
+                            text = "Si el OCR leyÃ³ mal la caja, escribe aquÃ­ el nombre correcto.",
+                            fontSize = 12.sp,
+                            color = TextoSecundario
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = borrador,
+                            onValueChange = { borrador = it },
+                            label = { Text("Nombre del medicamento") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (borrador.isNotBlank()) {
+                                viewModel.actualizarTexto(borrador)
+                                viewModel.capturar()
+                            }
+                            editando = false
+                        }
+                    ) { Text("Buscar") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { editando = false }) { Text("Cancelar") }
+                }
+            )
         }
     }
 }
@@ -425,9 +472,9 @@ private fun Reticula() {
 
 @Composable
 private fun ResultadoEscaneo(
-    estado: EstadoUi<String>,
+    estado: EstadoUi<TextoEscaneado>,
     textoVista: String,
-    onUsarTexto: (String) -> Unit,
+    onUsarTexto: (TextoEscaneado) -> Unit,
     onReintentar: () -> Unit
 ) {
     when (estado) {
@@ -444,7 +491,7 @@ private fun ResultadoEscaneo(
         is EstadoUi.Exito -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("TEXTO DETECTADO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Gris400)
             Text(
-                text = estado.datos,
+                text = estado.datos.consulta,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,

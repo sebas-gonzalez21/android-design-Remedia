@@ -29,7 +29,7 @@ internal object TextoMedicamentoExtractor {
     /** Terminaciones frecuentes en nombres de principios activos. */
     private val SUFIJOS_FARMACO = listOf(
         "INA", "OL", "OLOL", "PRIL", "SARTAN", "CINA", "MICINA",
-        "ZEPAM", "FENO", "TINA", "PIDO"
+        "ZEPAM", "FENO", "TINA", "PIDO", "FLOXACINO", "CICLOVIR", "STATINA"
     )
 
     /** Si aparece una de estas palabras, el segmento es de la ficha, no del nombre. */
@@ -45,7 +45,10 @@ internal object TextoMedicamentoExtractor {
         "COMPRIMIDO", "GRANULADO", "POLVO", "SOLUCION", "INYECTABLE", "GOTAS",
         "CREMA", "UNGUENTO", "JARABE", "SUSPENSION", "CAJA", "FRASCO", "SOBRE",
         "BLISTER", "MG", "ML", "MCG", "UI", "DEL", "LAS", "LOS", "CON", "PARA",
-        "POR", "TA", "RE", "DE", "Y"
+        "POR", "TA", "RE", "DE", "Y",
+        // Palabras que el OCR suele inventar al leer "medicamentos" o la cabecera.
+        "MEDICAMENTOS", "MEDICAMENTO", "MEDICAMENT", "MEDCANERTS", "MEDCAMENTS",
+        "INCE", "FARMACIA", "FARMACEUTICA", "LABORATORIOS", "VISION", "LECTURA"
     )
 
     /**
@@ -67,6 +70,9 @@ internal object TextoMedicamentoExtractor {
             else -> previo.texto
         }
     }
+
+    /** Confianza del nombre ya elegido: sirve para decidir si hace falta el OCR crudo. */
+    internal fun puntuacion(texto: String): Int = analizar(texto).puntos
 
     private fun analizar(texto: String): Candidato {
         val normalizado = normalizar(texto)

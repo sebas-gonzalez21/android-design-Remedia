@@ -82,7 +82,9 @@ fun AppNavigation(
                 viewModel = escanerViewModel,
                 onVolver = { navController.popBackStack() },
                 onUsarTexto = { texto ->
-                    navController.navigate(Destination.Resultados(texto)) {
+                    navController.navigate(
+                        Destination.Resultados(texto.consulta, texto.contexto)
+                    ) {
                         popUpTo<Destination.Inicio>()
                     }
                 }
@@ -93,6 +95,7 @@ fun AppNavigation(
             val ruta: Destination.Resultados = entrada.toRoute()
             ResultadosScreen(
                 consulta = ruta.consulta,
+                contexto = ruta.contexto,
                 viewModel = busquedaViewModel,
                 onVolver = { navController.popBackStack() },
                 onNuevaBusqueda = { consulta ->

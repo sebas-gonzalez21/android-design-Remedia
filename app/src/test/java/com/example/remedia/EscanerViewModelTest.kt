@@ -2,6 +2,7 @@ package com.example.remedia
 
 import com.example.remedia.presentation.viewmodel.EscanerViewModel
 import com.example.remedia.presentation.viewmodel.EstadoUi
+import com.example.remedia.presentation.viewmodel.TextoEscaneado
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -21,7 +22,10 @@ class EscanerViewModelTest {
 
         viewModel.capturar()
 
-        assertEquals(EstadoUi.Exito("DOLEX AVANZADO"), viewModel.estado.value)
+        val exito = viewModel.estado.value as EstadoUi.Exito<TextoEscaneado>
+        assertEquals("DOLEX AVANZADO", exito.datos.consulta)
+        // Confianza alta: no hace falta mandar el OCR completo a la bÃºsqueda.
+        assertEquals("DOLEX AVANZADO", exito.datos.contexto)
     }
 
     @Test
@@ -89,5 +93,30 @@ class EscanerViewModelTest {
 
         assertEquals("", viewModel.textoDetectado.value)
         assertEquals(EstadoUi.Vacio, viewModel.estado.value)
+    }
+
+    @Test
+    fun `un nombre detectado con confianza no arrastra el ruido del ocr`() {
+        viewModel.onTextoReconocido(
+            listOf("Ince I Medcanerts I ta re Alvio Del Dolor / Dolor General Aspirina 100mg Tableta")
+        )
+        viewModel.capturar()
+
+        val exito = viewModel.estado.value as EstadoUi.Exito<TextoEscaneado>
+
+        assertEquals("ASPIRINA", exito.datos.consulta)
+        assertEquals("ASPIRINA", exito.datos.contexto)
+    }
+
+    @Test
+    fun `el nombre corregido se usa pero conserva el ocr original`() {
+        viewModel.onTextoReconocido(listOf("INCE", "MEDCANERTS", "ALVIO DEL DOLOR"))
+        viewModel.actualizarTexto("Aspirina 100 mg")
+        viewModel.capturar()
+
+        val exito = viewModel.estado.value as EstadoUi.Exito<TextoEscaneado>
+
+        assertEquals("Aspirina 100 mg", exito.datos.consulta)
+        assertTrue(exito.datos.contexto.contains("MEDCANERTS"))
     }
 }

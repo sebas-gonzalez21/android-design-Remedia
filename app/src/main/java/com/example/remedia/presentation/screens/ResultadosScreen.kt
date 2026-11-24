@@ -64,12 +64,13 @@ private val ListaStateSaver = Saver<LazyListState, ArrayList<Int>>(
 @Composable
 fun ResultadosScreen(
     consulta: String,
+    contexto: String = "",
     viewModel: BusquedaViewModel,
     onVolver: () -> Unit,
     onNuevaBusqueda: (String) -> Unit,
     onMedicamentoClick: (String) -> Unit
 ) {
-    LaunchedEffect(consulta) { viewModel.buscar(consulta) }
+    LaunchedEffect(consulta, contexto) { viewModel.buscar(consulta, contexto) }
     val estado by viewModel.resultados.collectAsStateWithLifecycle()
     var textoBusqueda by rememberSaveable { mutableStateOf(consulta) }
     var filtro by rememberSaveable { mutableStateOf(Filtro.TODOS) }
@@ -136,7 +137,7 @@ fun ResultadosScreen(
             EstadoContenido(
                 estado = estado,
                 mensajeVacio = "No encontramos medicamentos con esa bÃºsqueda.",
-                onReintentar = { viewModel.buscar(consulta, forzar = true) }
+                onReintentar = { viewModel.buscar(consulta, contexto, forzar = true) }
             ) { lista ->
                 val visibles = when (filtro) {
                     Filtro.TODOS -> lista

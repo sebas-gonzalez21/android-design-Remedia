@@ -9,16 +9,20 @@ import kotlinx.coroutines.flow.asStateFlow
  * Estado del escÃ¡ner, separado de CameraX y de ML Kit.
  *
  * El analizador de imÃ¡genes solo entrega texto; este ViewModel decide cuÃ¡l lÃ­nea
- * es el nombre del medicamento y cuÃ¡ndo el usuario lo confirma con el obturador.
- * AsÃ­ la lÃ³gica se prueba sin cÃ¡mara y la pantalla no acumula estado propio.
+ * es el nombre del medicamento, guarda el OCR completo como contexto y permite
+ * al usuario corregir el texto antes de buscar. AsÃ­ la lÃ³gica se prueba sin
+ * cÃ¡mara y la pantalla no acumula estado propio.
  */
 class EscanerViewModel : ViewModel() {
 
     private val _textoDetectado = MutableStateFlow("")
     val textoDetectado: StateFlow<String> = _textoDetectado.asStateFlow()
 
-    private val _estado = MutableStateFlow<EstadoUi<String>>(EstadoUi.Vacio)
-    val estado: StateFlow<EstadoUi<String>> = _estado.asStateFlow()
+    private val _estado = MutableStateFlow<EstadoUi<TextoEscaneado>>(EstadoUi.Vacio)
+    val estado: StateFlow<EstadoUi<TextoEscaneado>> = _estado.asStateFlow()
+
+    /** Ãšltimas lÃ­neas Ãºtiles del OCR, sin recortar: sirven como contexto de respaldo. */
+    private val lineasCrudas = ArrayDeque<String>()
 
     /**
      * El OCR va entregando resultados; guardamos el mejor sin confirmarlo todavÃ­a.
@@ -26,17 +30,37 @@ class EscanerViewModel : ViewModel() {
      * el nombre mostrado parpadee mientras la cÃ¡mara se enfoca.
      */
     fun onTextoReconocido(textos: List<String>) {
+        val utiles = textos.map { it.trim() }.filter { it.isNotBlank() }
+        if (utiles.isNotEmpty()) {
+            lineasCrudas.addAll(utiles)
+            while (lineasCrudas.size > MAX_LINEAS) lineasCrudas.removeFirst()
+        }
+
         val candidato = TextoMedicamentoExtractor.extraer(textos, _textoDetectado.value)
         if (candidato != null && candidato != _textoDetectado.value) _textoDetectado.value = candidato
     }
 
-    /** El obturador confirma el texto que estaba en el visor. */
+    /** El usuario corrige el nombre leÃ­do antes de confirmar. */
+    fun actualizarTexto(texto: String) {
+        val limpio = texto.trim()
+        if (limpio.isNotBlank()) _textoDetectado.value = limpio
+    }
+
+    /** El obturador confirma el texto que estaba en el visor, junto con su contexto. */
     fun capturar() {
         val texto = _textoDetectado.value
         _estado.value = if (texto.isBlank()) {
             EstadoUi.Vacio
         } else {
-            EstadoUi.Exito(texto)
+            val crudo = lineasCrudas.joinToString(" | ")
+            val necesitaContexto =
+                crudo.isNotBlank() && TextoMedicamentoExtractor.puntuacion(texto) < UMBRAL_CONFIANZA
+            EstadoUi.Exito(
+                TextoEscaneado(
+                    consulta = texto,
+                    contexto = if (necesitaContexto) crudo else texto
+                )
+            )
         }
     }
 
@@ -62,6 +86,13 @@ class EscanerViewModel : ViewModel() {
     /** "Reintentar" y "Escribir el nombre" vuelven al visor limpio. */
     fun reiniciar() {
         _textoDetectado.value = ""
+        lineasCrudas.clear()
         _estado.value = EstadoUi.Vacio
+    }
+
+    private companion object {
+        const val MAX_LINEAS = 12
+        /** Por debajo de esto preferimos preguntarle al normalizador (OCR/Gemini). */
+        const val UMBRAL_CONFIANZA = 19
     }
 }

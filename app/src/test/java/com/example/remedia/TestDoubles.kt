@@ -49,14 +49,16 @@ internal fun dtoDePrueba(
 )
 
 internal class FakeMedicamentosRepository : MedicamentosRepository {
-    var buscarHandler: suspend (String) -> List<Medicamento> = { emptyList() }
+    var buscarHandler: suspend (String, String) -> List<Medicamento> = { _, _ -> emptyList() }
     var detalleHandler: suspend (String) -> Medicamento? = { null }
     val consultas = mutableListOf<String>()
+    val contextos = mutableListOf<String>()
     val expedientes = mutableListOf<String>()
 
-    override suspend fun buscar(texto: String): List<Medicamento> {
+    override suspend fun buscar(texto: String, contexto: String): List<Medicamento> {
         consultas += texto
-        return buscarHandler(texto)
+        contextos += contexto
+        return buscarHandler(texto, contexto)
     }
 
     override suspend fun cargarDetalle(expediente: String): Medicamento? {
@@ -122,12 +124,16 @@ internal class FakeMedicamentosApi : MedicamentosApi {
     var whereRecibido: String? = null
     var llamadasDetalle = 0
     var llamadasCatalogo = 0
+    var llamadasBuscar = 0
 
     override suspend fun buscar(
         texto: String,
         select: String,
         limit: Int
-    ): List<MedicamentoDto> = buscarHandler(texto)
+    ): List<MedicamentoDto> {
+        llamadasBuscar++
+        return buscarHandler(texto)
+    }
 
     override suspend fun buscarPorNombre(
         where: String,

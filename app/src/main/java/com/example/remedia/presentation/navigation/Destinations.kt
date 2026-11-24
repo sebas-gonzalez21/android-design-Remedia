@@ -16,9 +16,12 @@ sealed interface Destination {
     @Serializable
     data object Escaner : Destination
 
-    /** [consulta] es el texto buscado o el principio activo (en "Ver equivalentes"). */
+    /**
+     * [consulta] es el texto buscado o el principio activo (en "Ver equivalentes").
+     * [contexto] guarda el OCR completo cuando el origen es el escÃ¡ner.
+     */
     @Serializable
-    data class Resultados(val consulta: String) : Destination
+    data class Resultados(val consulta: String, val contexto: String = "") : Destination
 
     @Serializable
     data class Detalle(val expediente: String) : Destination

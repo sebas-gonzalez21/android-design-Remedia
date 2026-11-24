@@ -72,18 +72,35 @@ class MedicamentosRepositoryImpl(
     private val catalogoMutex = Mutex()
     private var principiosVentaLibre: Set<String>? = null
 
-    override suspend fun buscar(texto: String): List<Medicamento> {
-        val encontrados = api.buscar(texto = texto)
+    override suspend fun buscar(texto: String, contexto: String): List<Medicamento> {
+        val consulta = texto.trim()
+        val contextoOCR = contexto.trim()
+            .takeIf { it.isNotBlank() && it != consulta }
+
+        // Cuando el escÃ¡ner entrega el OCR completo, probamos primero los tÃ©rminos
+        // limpios. Si el visor eligiÃ³ "INCE" pero la caja decÃ­a "ASPIRINA", Gemini
+        // (o el normalizador heurÃ­stico) puede recuperar el nombre real. En una
+        // bÃºsqueda escrita a mano no hay contexto extra y no se hace este paso.
+        if (contextoOCR != null) {
+            val porContexto = buscarPorCandidatos(normalizador.candidatos(contextoOCR))
+            if (porContexto.isNotEmpty()) return conVentaLibre(porContexto)
+        }
+
+        val encontrados = api.buscar(texto = consulta)
         // El texto venÃ­a del OCR y puede tener ruido. Antes de rendirnos, probamos
         // las palabras candidatas como prefijo del nombre comercial.
         val medicamentos = if (encontrados.isNotEmpty()) {
             aMedicamentos(encontrados)
         } else {
             // Solo aquÃ­ (cuando $q fallÃ³) se permite el costo de Gemini.
-            buscarPorCandidatos(normalizador.candidatos(texto))
+            buscarPorCandidatos(normalizador.candidatos(contextoOCR ?: consulta))
         }
-        val catalogo = catalogoVentaLibre() ?: return medicamentos
+        return conVentaLibre(medicamentos)
+    }
 
+    /** Completa la insignia de venta libre sin lanzar peticiones por tarjeta. */
+    private suspend fun conVentaLibre(medicamentos: List<Medicamento>): List<Medicamento> {
+        val catalogo = catalogoVentaLibre() ?: return medicamentos
         return medicamentos.map { medicamento ->
             medicamento.copy(
                 ventaLibre = medicamento.principiosActivos.firstOrNull().esVentaLibre(catalogo)

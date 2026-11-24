@@ -14,9 +14,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Estado de Inicio (recientes) y Resultados (búsqueda). Una sola instancia se
+ * Estado de Inicio (recientes) y Resultados (bÃºsqueda). Una sola instancia se
  * comparte entre esas dos pantallas (ver AppNavigation) para que el historial
- * de búsquedas recientes persista al navegar y entre ejecuciones de la app.
+ * de bÃºsquedas recientes persista al navegar y entre ejecuciones de la app.
  */
 class BusquedaViewModel(
     private val repository: MedicamentosRepository,
@@ -43,7 +43,7 @@ class BusquedaViewModel(
             } catch (e: Exception) {
                 emptyList() // El historial es un extra: nunca rompe la app.
             }
-            // Si el usuario ya buscó mientras se leía el DataStore, no pisamos su lista.
+            // Si el usuario ya buscÃ³ mientras se leÃ­a el DataStore, no pisamos su lista.
             if (!huboBusqueda) {
                 historial.addAll(guardados.take(MAX_RECIENTES))
                 _recientes.value = EstadoUi.Exito(historial.toList())
@@ -52,15 +52,15 @@ class BusquedaViewModel(
     }
 
     /**
-     * @param forzar true desde "Reintentar": ignora la caché aunque el último
+     * @param forzar true desde "Reintentar": ignora la cachÃ© aunque el Ãºltimo
      * intento haya terminado en error.
      */
-    fun buscar(texto: String, forzar: Boolean = false) {
+    fun buscar(texto: String, contexto: String = "", forzar: Boolean = false) {
         val consulta = texto.trim()
         if (consulta.isBlank()) return
 
-        // Cancelar siempre, también en aciertos de caché: una búsqueda anterior
-        // todavía en vuelo no debe pisar el estado que acabamos de restaurar.
+        // Cancelar siempre, tambiÃ©n en aciertos de cachÃ©: una bÃºsqueda anterior
+        // todavÃ­a en vuelo no debe pisar el estado que acabamos de restaurar.
         buscarJob?.cancel()
 
         if (!forzar) {
@@ -74,11 +74,11 @@ class BusquedaViewModel(
         _resultados.value = EstadoUi.Cargando
         buscarJob = viewModelScope.launch {
             val estado = try {
-                val lista = repository.buscar(consulta)
+                val lista = repository.buscar(consulta, contexto)
                 registrarReciente(consulta)
                 if (lista.isEmpty()) EstadoUi.Vacio else EstadoUi.Exito(lista)
             } catch (e: CancellationException) {
-                throw e // Nunca convertir una cancelación en Error.
+                throw e // Nunca convertir una cancelaciÃ³n en Error.
             } catch (e: Exception) {
                 EstadoUi.Error(e.message ?: "No se pudo conectar con el servidor.")
             }
@@ -101,7 +101,7 @@ class BusquedaViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Persistir es best-effort: la sesión sigue funcionando en memoria.
+                // Persistir es best-effort: la sesiÃ³n sigue funcionando en memoria.
             }
         }
     }

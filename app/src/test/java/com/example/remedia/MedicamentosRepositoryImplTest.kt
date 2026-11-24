@@ -159,6 +159,36 @@ class MedicamentosRepositoryImplTest {
         assertEquals("upper(producto) like 'ASPIRINA%'", api.whereBusquedaRecibido)
     }
 
+    @Test
+    fun `el contexto del ocr se normaliza antes que la consulta elegida`() = runTest {
+        api.buscarHandler = { listOf(dtoDePrueba(producto = "RESULTADO INCORRECTO")) }
+        api.buscarPorNombreHandler = { where ->
+            if (where.contains("ASPIRINA")) {
+                listOf(dtoDePrueba(producto = "ASPIRINA 100 MG"))
+            } else {
+                emptyList()
+            }
+        }
+        val repositorioConGemini = MedicamentosRepositoryImpl(
+            api = api,
+            normalizador = object : NormalizadorConsulta {
+                override suspend fun candidatos(texto: String): List<String> {
+                    assertTrue(texto.contains("Medcanerts", ignoreCase = true))
+                    return listOf("ASPIRINA")
+                }
+            }
+        )
+
+        val resultado = repositorioConGemini.buscar(
+            "ASPIRINA",
+            "Ince I Medcanerts I ta re Alvio Del Dolor / Aspirina 100mg"
+        )
+
+        assertEquals("ASPIRINA 100 MG", resultado.single().nombre)
+        assertEquals(0, api.llamadasBuscar)
+        assertEquals("upper(producto) like 'ASPIRINA%'", api.whereBusquedaRecibido)
+    }
+
     private inline fun capture(bloque: () -> Unit): Throwable? = try {
         bloque()
         null
